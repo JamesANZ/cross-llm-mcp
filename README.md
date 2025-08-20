@@ -1,4 +1,5 @@
 # Cross-LLM MCP Server
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/JamesANZ/cross-llm-mcp)](https://archestra.ai/mcp-catalog/jamesanz__cross-llm-mcp)
 
 A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, and DeepSeek. This allows you to call different LLMs from within any MCP-compatible client and combine their responses.
 
