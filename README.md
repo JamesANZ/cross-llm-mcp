@@ -156,31 +156,7 @@ cd cross-llm-mcp
 npm install
 ```
 
-3. Set up environment variables:
-
-```bash
-cp env.example .env
-```
-
-4. Edit the `.env` file with your API keys:
-
-```env
-# OpenAI/ChatGPT API Key
-OPENAI_API_KEY=your_openai_api_key_here
-
-# Anthropic/Claude API Key
-ANTHROPIC_API_KEY=your_anthropic_api_key_here
-
-# DeepSeek API Key
-DEEPSEEK_API_KEY=your_deepseek_api_key_here
-
-# Default models for each provider
-DEFAULT_CHATGPT_MODEL=gpt-4
-DEFAULT_CLAUDE_MODEL=claude-3-sonnet-20240229
-DEFAULT_DEEPSEEK_MODEL=deepseek-chat
-```
-
-5. Build the project:
+3. Build the project:
 
 ```bash
 npm run build
@@ -211,9 +187,34 @@ npm run build
 
 ## Usage
 
+### Configuring Claude Desktop
+
+Add the following configuration to your Claude Desktop MCP settings:
+
+```json
+{
+  "cross-llm-mcp": {
+    "command": "node",
+    "args": ["/path/to/your/cross-llm-mcp/build/index.js"],
+    "cwd": "/path/to/your/cross-llm-mcp",
+    "env": {
+      "OPENAI_API_KEY": "your_openai_api_key_here",
+      "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+      "DEEPSEEK_API_KEY": "your_deepseek_api_key_here"
+    }
+  }
+}
+```
+
+**Replace the paths and API keys with your actual values:**
+
+- Update the `args` path to point to your `build/index.js` file
+- Update the `cwd` path to your project directory
+- Add your actual API keys to the `env` section
+
 ### Running the Server
 
-Start the MCP server:
+The server runs automatically when configured in Claude Desktop. You can also run it manually:
 
 ```bash
 npm start
@@ -297,6 +298,40 @@ Choose the most cost-effective LLM for your specific use case.
 
 Cross-reference responses from multiple models to validate information.
 
+## Configuration
+
+### Claude Desktop Setup
+
+The recommended way to use this MCP server is through Claude Desktop with environment variables configured directly in the MCP settings:
+
+```json
+{
+  "cross-llm-mcp": {
+    "command": "node",
+    "args": [
+      "/Users/jamessangalli/Documents/projects/cross-llm-mcp/build/index.js"
+    ],
+    "cwd": "/Users/jamessangalli/Documents/projects/cross-llm-mcp",
+    "env": {
+      "OPENAI_API_KEY": "sk-proj-your-openai-key-here",
+      "ANTHROPIC_API_KEY": "sk-ant-your-anthropic-key-here",
+      "DEEPSEEK_API_KEY": "sk-your-deepseek-key-here"
+    }
+  }
+}
+```
+
+### Environment Variables
+
+The server reads the following environment variables:
+
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `ANTHROPIC_API_KEY`: Your Anthropic API key
+- `DEEPSEEK_API_KEY`: Your DeepSeek API key
+- `DEFAULT_CHATGPT_MODEL`: Default ChatGPT model (default: gpt-4)
+- `DEFAULT_CLAUDE_MODEL`: Default Claude model (default: claude-3-sonnet-20240229)
+- `DEFAULT_DEEPSEEK_MODEL`: Default DeepSeek model (default: deepseek-chat)
+
 ## API Endpoints
 
 This MCP server uses the following API endpoints:
@@ -338,17 +373,6 @@ The server includes comprehensive error handling with detailed messages:
 ```
 **Claude Error:** Claude API error: Network timeout
 ```
-
-## Configuration
-
-### Environment Variables
-
-- `OPENAI_API_KEY`: Your OpenAI API key
-- `ANTHROPIC_API_KEY`: Your Anthropic API key
-- `DEEPSEEK_API_KEY`: Your DeepSeek API key
-- `DEFAULT_CHATGPT_MODEL`: Default ChatGPT model (default: gpt-4)
-- `DEFAULT_CLAUDE_MODEL`: Default Claude model (default: claude-3-sonnet-20240229)
-- `DEFAULT_DEEPSEEK_MODEL`: Default DeepSeek model (default: deepseek-chat)
 
 ### Supported Models
 
@@ -392,7 +416,6 @@ cross-llm-mcp/
 - `@modelcontextprotocol/sdk` - MCP SDK for server implementation
 - `superagent` - HTTP client for API requests
 - `zod` - Schema validation for tool parameters
-- `dotenv` - Environment variable management
 
 ## Development
 

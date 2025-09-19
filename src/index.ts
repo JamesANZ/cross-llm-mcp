@@ -1,11 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import dotenv from "dotenv";
 import { LLMClients } from "./llm-clients.js";
 import { LLMProvider } from "./types.js";
-
-dotenv.config();
 
 const server = new McpServer({
   name: "cross-llm-mcp",
