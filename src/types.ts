@@ -1,4 +1,4 @@
-export type LLMProvider = "chatgpt" | "claude" | "deepseek";
+export type LLMProvider = "chatgpt" | "claude" | "deepseek" | "gemini";
 
 export type LLMResponse = {
   provider: LLMProvider;
@@ -105,5 +105,33 @@ export type DeepSeekResponse = {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+  };
+};
+
+export type GeminiRequest = {
+  contents: Array<{
+    parts: Array<{
+      text: string;
+    }>;
+  }>;
+  generationConfig?: {
+    temperature?: number;
+    maxOutputTokens?: number;
+  };
+};
+
+export type GeminiResponse = {
+  candidates: Array<{
+    content: {
+      parts: Array<{
+        text: string;
+      }>;
+    };
+    finishReason: string;
+  }>;
+  usageMetadata: {
+    promptTokenCount: number;
+    candidatesTokenCount: number;
+    totalTokenCount: number;
   };
 };

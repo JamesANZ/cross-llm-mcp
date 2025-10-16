@@ -9,17 +9,21 @@ import {
   ClaudeResponse,
   DeepSeekRequest,
   DeepSeekResponse,
+  GeminiRequest,
+  GeminiResponse,
 } from "./types.js";
 
 export class LLMClients {
   private openaiApiKey: string;
   private anthropicApiKey: string;
   private deepseekApiKey: string;
+  private geminiApiKey: string;
 
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY || "";
     this.anthropicApiKey = process.env.ANTHROPIC_API_KEY || "";
     this.deepseekApiKey = process.env.DEEPSEEK_API_KEY || "";
+    this.geminiApiKey = process.env.GEMINI_API_KEY || "";
   }
 
   async callChatGPT(request: LLMRequest): Promise<LLMResponse> {
@@ -247,6 +251,84 @@ export class LLMClients {
     }
   }
 
+  async callGemini(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.geminiApiKey) {
+      return {
+        provider: "gemini",
+        response: "",
+        error: "Gemini API key not configured",
+      };
+    }
+
+    try {
+      const geminiRequest: GeminiRequest = {
+        contents: [
+          {
+            parts: [
+              {
+                text: request.prompt,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: request.temperature || 0.7,
+          maxOutputTokens: request.max_tokens || 1000,
+        },
+      };
+
+      const model =
+        request.model || process.env.DEFAULT_GEMINI_MODEL || "gemini-2.5-flash";
+      const response = await superagent
+        .post(
+          `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${this.geminiApiKey}`,
+        )
+        .set("Content-Type", "application/json")
+        .send(geminiRequest);
+
+      const geminiResponse: GeminiResponse = response.body;
+      const content =
+        geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+      return {
+        provider: "gemini",
+        response: content,
+        model: model,
+        usage: {
+          prompt_tokens: geminiResponse.usageMetadata?.promptTokenCount || 0,
+          completion_tokens:
+            geminiResponse.usageMetadata?.candidatesTokenCount || 0,
+          total_tokens: geminiResponse.usageMetadata?.totalTokenCount || 0,
+        },
+      };
+    } catch (error: any) {
+      let errorMessage = "Unknown error";
+
+      if (error.response) {
+        const status = error.response.status;
+        const body = error.response.body;
+
+        if (status === 401) {
+          errorMessage = "Invalid API key - please check your Gemini API key";
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded - please try again later";
+        } else if (status === 400) {
+          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+        } else {
+          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        provider: "gemini",
+        response: "",
+        error: `Gemini API error: ${errorMessage}`,
+      };
+    }
+  }
+
   async callLLM(
     provider: LLMProvider,
     request: LLMRequest,
@@ -258,6 +340,8 @@ export class LLMClients {
         return this.callClaude(request);
       case "deepseek":
         return this.callDeepSeek(request);
+      case "gemini":
+        return this.callGemini(request);
       default:
         return {
           provider,
@@ -268,7 +352,12 @@ export class LLMClients {
   }
 
   async callAllLLMs(request: LLMRequest): Promise<LLMResponse[]> {
-    const providers: LLMProvider[] = ["chatgpt", "claude", "deepseek"];
+    const providers: LLMProvider[] = [
+      "chatgpt",
+      "claude",
+      "deepseek",
+      "gemini",
+    ];
     const promises = providers.map((provider) =>
       this.callLLM(provider, request),
     );

@@ -2,11 +2,11 @@
 
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/JamesANZ/cross-llm-mcp)](https://archestra.ai/mcp-catalog/jamesanz__cross-llm-mcp)
 
-A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, and DeepSeek. This allows you to call different LLMs from within any MCP-compatible client and combine their responses.
+A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, and Gemini. This allows you to call different LLMs from within any MCP-compatible client and combine their responses.
 
 ## Features
 
-This MCP server offers five specialized tools for interacting with different LLM providers:
+This MCP server offers six specialized tools for interacting with different LLM providers:
 
 ### 🤖 Individual LLM Tools
 
@@ -70,11 +70,26 @@ Call DeepSeek API with a prompt.
 
 - DeepSeek response with model information and token usage statistics
 
+#### `call-gemini`
+
+Call Google's Gemini API with a prompt.
+
+**Input:**
+
+- `prompt` (string): The prompt to send to Gemini
+- `model` (optional, string): Gemini model to use (default: gemini-2.5-flash)
+- `temperature` (optional, number): Temperature for response randomness (0-2, default: 0.7)
+- `max_tokens` (optional, number): Maximum tokens in response (default: 1000)
+
+**Output:**
+
+- Gemini response with model information and token usage statistics
+
 ### 🔄 Combined Tools
 
 #### `call-all-llms`
 
-Call all available LLM APIs (ChatGPT, Claude, DeepSeek) with the same prompt and get combined responses.
+Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini) with the same prompt and get combined responses.
 
 **Input:**
 
@@ -120,9 +135,17 @@ Quantum computing harnesses the principles of quantum mechanics...
 
 ---
 
+## GEMINI
+
+Model: gemini-2.5-flash
+
+Quantum computing is a revolutionary approach to computation...
+
+---
+
 Summary:
-- Successful responses: 3/3
-- Total tokens used: 1250
+- Successful responses: 4/4
+- Total tokens used: 1650
 ```
 
 #### `call-llm`
@@ -131,7 +154,7 @@ Call a specific LLM provider by name.
 
 **Input:**
 
-- `provider` (string): The LLM provider to call ("chatgpt", "claude", or "deepseek")
+- `provider` (string): The LLM provider to call ("chatgpt", "claude", "deepseek", or "gemini")
 - `prompt` (string): The prompt to send to the LLM
 - `model` (optional, string): Model to use (uses provider default if not specified)
 - `temperature` (optional, number): Temperature for response randomness (0-2, default: 0.7)
@@ -184,6 +207,13 @@ npm run build
 2. Sign up or log in to your account
 3. Create a new API key
 4. Add it to your `.env` file as `DEEPSEEK_API_KEY`
+
+### Google Gemini
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign up or log in to your Google account
+3. Create a new API key
+4. Add it to your Claude Desktop configuration as `GEMINI_API_KEY`
 
 ## Usage
 
@@ -276,6 +306,19 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
+#### Call Gemini
+
+```json
+{
+  "tool": "call-gemini",
+  "arguments": {
+    "prompt": "Write a creative story about AI",
+    "model": "gemini-2.5-flash",
+    "temperature": 0.9
+  }
+}
+```
+
 ## Use Cases
 
 ### 1. **Multi-Perspective Analysis**
@@ -315,7 +358,8 @@ The recommended way to use this MCP server is through Claude Desktop with enviro
     "env": {
       "OPENAI_API_KEY": "sk-proj-your-openai-key-here",
       "ANTHROPIC_API_KEY": "sk-ant-your-anthropic-key-here",
-      "DEEPSEEK_API_KEY": "sk-your-deepseek-key-here"
+      "DEEPSEEK_API_KEY": "sk-your-deepseek-key-here",
+      "GEMINI_API_KEY": "your-gemini-api-key-here"
     }
   }
 }
@@ -328,9 +372,11 @@ The server reads the following environment variables:
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `ANTHROPIC_API_KEY`: Your Anthropic API key
 - `DEEPSEEK_API_KEY`: Your DeepSeek API key
+- `GEMINI_API_KEY`: Your Google Gemini API key
 - `DEFAULT_CHATGPT_MODEL`: Default ChatGPT model (default: gpt-4)
 - `DEFAULT_CLAUDE_MODEL`: Default Claude model (default: claude-3-sonnet-20240229)
 - `DEFAULT_DEEPSEEK_MODEL`: Default DeepSeek model (default: deepseek-chat)
+- `DEFAULT_GEMINI_MODEL`: Default Gemini model (default: gemini-2.5-flash)
 
 ## API Endpoints
 
@@ -339,6 +385,7 @@ This MCP server uses the following API endpoints:
 - **OpenAI**: `https://api.openai.com/v1/chat/completions`
 - **Anthropic**: `https://api.anthropic.com/v1/messages`
 - **DeepSeek**: `https://api.deepseek.com/v1/chat/completions`
+- **Google Gemini**: `https://generativelanguage.googleapis.com/v1/models/{model}:generateContent`
 
 ## Error Handling
 
@@ -395,6 +442,14 @@ The server includes comprehensive error handling with detailed messages:
 - `deepseek-chat`
 - `deepseek-coder`
 - And other DeepSeek models
+
+#### Gemini Models
+
+- `gemini-2.5-flash` (default)
+- `gemini-2.5-pro`
+- `gemini-2.0-flash`
+- `gemini-2.0-flash-001`
+- And other Google Gemini models
 
 ## Project Structure
 
