@@ -312,10 +312,84 @@ server.tool(
   },
 );
 
+server.tool(
+  "call-grok",
+  "Call xAI's Grok API with a prompt",
+  {
+    prompt: z.string().describe("The prompt to send to Grok"),
+    model: z
+      .string()
+      .optional()
+      .describe("Grok model to use (default: grok-3)"),
+    temperature: z
+      .number()
+      .min(0)
+      .max(2)
+      .optional()
+      .describe("Temperature for response randomness (0-2, default: 0.7)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum tokens in response (default: 1000)"),
+  },
+  async ({ prompt, model, temperature, max_tokens }) => {
+    try {
+      const response = await llmClients.callGrok({
+        prompt,
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      if (response.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Grok Error:** ${response.error}`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Grok Response**\n`;
+      result += `**Model:** ${response.model || "Unknown"}\n\n`;
+      result += response.response;
+
+      if (response.usage) {
+        result += `\n\n---\n**Usage:**\n`;
+        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
+        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
+        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calling Grok: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
 // Combined tool that calls all LLMs
 server.tool(
   "call-all-llms",
-  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini) with the same prompt and get combined responses",
+  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok) with the same prompt and get combined responses",
   {
     prompt: z.string().describe("The prompt to send to all LLMs"),
     temperature: z
@@ -397,7 +471,7 @@ server.tool(
   "Call a specific LLM provider by name",
   {
     provider: z
-      .enum(["chatgpt", "claude", "deepseek", "gemini"])
+      .enum(["chatgpt", "claude", "deepseek", "gemini", "grok"])
       .describe("The LLM provider to call"),
     prompt: z.string().describe("The prompt to send to the LLM"),
     model: z

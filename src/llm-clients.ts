@@ -11,6 +11,8 @@ import {
   DeepSeekResponse,
   GeminiRequest,
   GeminiResponse,
+  GrokRequest,
+  GrokResponse,
 } from "./types.js";
 
 export class LLMClients {
@@ -18,12 +20,14 @@ export class LLMClients {
   private anthropicApiKey: string;
   private deepseekApiKey: string;
   private geminiApiKey: string;
+  private grokApiKey: string;
 
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY || "";
     this.anthropicApiKey = process.env.ANTHROPIC_API_KEY || "";
     this.deepseekApiKey = process.env.DEEPSEEK_API_KEY || "";
     this.geminiApiKey = process.env.GEMINI_API_KEY || "";
+    this.grokApiKey = process.env.XAI_API_KEY || "";
   }
 
   async callChatGPT(request: LLMRequest): Promise<LLMResponse> {
@@ -329,6 +333,77 @@ export class LLMClients {
     }
   }
 
+  async callGrok(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.grokApiKey) {
+      return {
+        provider: "grok",
+        response: "",
+        error: "Grok API key not configured",
+      };
+    }
+
+    try {
+      const grokRequest: GrokRequest = {
+        model: request.model || process.env.DEFAULT_GROK_MODEL || "grok-3",
+        messages: [
+          {
+            role: "user",
+            content: request.prompt,
+          },
+        ],
+        temperature: request.temperature || 0.7,
+        max_tokens: request.max_tokens || 1000,
+      };
+
+      const response = await superagent
+        .post("https://api.x.ai/v1/chat/completions")
+        .set("Authorization", `Bearer ${this.grokApiKey}`)
+        .set("Content-Type", "application/json")
+        .send(grokRequest);
+
+      const grokResponse: GrokResponse = response.body;
+      const content = grokResponse.choices[0]?.message?.content || "";
+
+      return {
+        provider: "grok",
+        response: content,
+        model: grokResponse.model,
+        usage: {
+          prompt_tokens: grokResponse.usage.prompt_tokens,
+          completion_tokens: grokResponse.usage.completion_tokens,
+          total_tokens: grokResponse.usage.total_tokens,
+        },
+      };
+    } catch (error: any) {
+      let errorMessage = "Unknown error";
+
+      if (error.response) {
+        const status = error.response.status;
+        const body = error.response.body;
+
+        if (status === 401) {
+          errorMessage = "Invalid API key - please check your Grok API key";
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded - please try again later";
+        } else if (status === 402) {
+          errorMessage = "Payment required - please check your Grok billing";
+        } else if (status === 400) {
+          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+        } else {
+          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        provider: "grok",
+        response: "",
+        error: `Grok API error: ${errorMessage}`,
+      };
+    }
+  }
+
   async callLLM(
     provider: LLMProvider,
     request: LLMRequest,
@@ -342,6 +417,8 @@ export class LLMClients {
         return this.callDeepSeek(request);
       case "gemini":
         return this.callGemini(request);
+      case "grok":
+        return this.callGrok(request);
       default:
         return {
           provider,
@@ -357,6 +434,7 @@ export class LLMClients {
       "claude",
       "deepseek",
       "gemini",
+      "grok",
     ];
     const promises = providers.map((provider) =>
       this.callLLM(provider, request),

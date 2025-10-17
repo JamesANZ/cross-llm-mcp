@@ -85,11 +85,26 @@ Call Google's Gemini API with a prompt.
 
 - Gemini response with model information and token usage statistics
 
+#### `call-grok`
+
+Call xAI's Grok API with a prompt.
+
+**Input:**
+
+- `prompt` (string): The prompt to send to Grok
+- `model` (optional, string): Grok model to use (default: grok-3)
+- `temperature` (optional, number): Temperature for response randomness (0-2, default: 0.7)
+- `max_tokens` (optional, number): Maximum tokens in response (default: 1000)
+
+**Output:**
+
+- Grok response with model information and token usage statistics
+
 ### 🔄 Combined Tools
 
 #### `call-all-llms`
 
-Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini) with the same prompt and get combined responses.
+Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok) with the same prompt and get combined responses.
 
 **Input:**
 
@@ -215,6 +230,13 @@ npm run build
 3. Create a new API key
 4. Add it to your Claude Desktop configuration as `GEMINI_API_KEY`
 
+### xAI/Grok
+
+1. Visit [xAI Platform](https://console.x.ai/)
+2. Sign up or log in to your account
+3. Create a new API key
+4. Add it to your Claude Desktop configuration as `XAI_API_KEY`
+
 ## Usage
 
 ### Configuring Claude Desktop
@@ -231,7 +253,8 @@ Add the following configuration to your Claude Desktop MCP settings:
       "OPENAI_API_KEY": "your_openai_api_key_here",
       "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
       "DEEPSEEK_API_KEY": "your_deepseek_api_key_here",
-      "GEMINI_API_KEY": "your_gemini_api_key_here"
+      "GEMINI_API_KEY": "your_gemini_api_key_here",
+      "XAI_API_KEY": "your_grok_api_key_here"
     }
   }
 }
@@ -320,6 +343,19 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
+#### Call Grok
+
+```json
+{
+  "tool": "call-grok",
+  "arguments": {
+    "prompt": "Tell me a joke about programming",
+    "model": "grok-3",
+    "temperature": 0.8
+  }
+}
+```
+
 ## Use Cases
 
 ### 1. **Multi-Perspective Analysis**
@@ -374,10 +410,12 @@ The server reads the following environment variables:
 - `ANTHROPIC_API_KEY`: Your Anthropic API key
 - `DEEPSEEK_API_KEY`: Your DeepSeek API key
 - `GEMINI_API_KEY`: Your Google Gemini API key
+- `XAI_API_KEY`: Your xAI Grok API key
 - `DEFAULT_CHATGPT_MODEL`: Default ChatGPT model (default: gpt-4)
 - `DEFAULT_CLAUDE_MODEL`: Default Claude model (default: claude-3-sonnet-20240229)
 - `DEFAULT_DEEPSEEK_MODEL`: Default DeepSeek model (default: deepseek-chat)
 - `DEFAULT_GEMINI_MODEL`: Default Gemini model (default: gemini-2.5-flash)
+- `DEFAULT_GROK_MODEL`: Default Grok model (default: grok-3)
 
 ## API Endpoints
 
@@ -387,6 +425,7 @@ This MCP server uses the following API endpoints:
 - **Anthropic**: `https://api.anthropic.com/v1/messages`
 - **DeepSeek**: `https://api.deepseek.com/v1/chat/completions`
 - **Google Gemini**: `https://generativelanguage.googleapis.com/v1/models/{model}:generateContent`
+- **xAI Grok**: `https://api.x.ai/v1/chat/completions`
 
 ## Error Handling
 
@@ -451,6 +490,11 @@ The server includes comprehensive error handling with detailed messages:
 - `gemini-2.0-flash`
 - `gemini-2.0-flash-001`
 - And other Google Gemini models
+
+#### Grok Models
+
+- `grok-3` (default)
+- And other xAI Grok models
 
 ## Project Structure
 
