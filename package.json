@@ -12,10 +12,27 @@
     "build"
   ],
   "main": "index.js",
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "llm",
+    "chatgpt",
+    "claude",
+    "gemini",
+    "grok",
+    "deepseek",
+    "ai",
+    "openai",
+    "anthropic",
+    "xai"
+  ],
+  "author": "James Sangalli",
+  "license": "MIT",
+  "description": "A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, Gemini, and Grok",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JamesANZ/cross-llm-mcp.git"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.15.0",
     "superagent": "^10.2.2",
