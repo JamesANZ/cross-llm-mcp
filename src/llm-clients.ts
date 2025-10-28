@@ -72,31 +72,10 @@ export class LLMClients {
         },
       };
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your OpenAI API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage = "Payment required - please check your OpenAI billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         provider: "chatgpt",
         response: "",
-        error: `ChatGPT API error: ${errorMessage}`,
+        error: `ChatGPT API error: ${error}`,
       };
     }
   }
@@ -149,33 +128,10 @@ export class LLMClients {
         },
       };
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage =
-            "Invalid API key - please check your Anthropic API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage =
-            "Payment required - please check your Anthropic billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         provider: "claude",
         response: "",
-        error: `Claude API error: ${errorMessage}`,
+        error: `Claude API error: ${error}`,
       };
     }
   }
@@ -225,32 +181,10 @@ export class LLMClients {
         },
       };
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your DeepSeek API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage =
-            "Payment required - please check your DeepSeek billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         provider: "deepseek",
         response: "",
-        error: `DeepSeek API error: ${errorMessage}`,
+        error: `DeepSeek API error: ${error}`,
       };
     }
   }
@@ -306,29 +240,10 @@ export class LLMClients {
         },
       };
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your Gemini API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         provider: "gemini",
         response: "",
-        error: `Gemini API error: ${errorMessage}`,
+        error: `Gemini API error: ${error}`,
       };
     }
   }
@@ -375,31 +290,10 @@ export class LLMClients {
         },
       };
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your Grok API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage = "Payment required - please check your Grok billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
       return {
         provider: "grok",
         response: "",
-        error: `Grok API error: ${errorMessage}`,
+        error: `Grok API error: ${error}`,
       };
     }
   }

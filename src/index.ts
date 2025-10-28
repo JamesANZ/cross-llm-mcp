@@ -63,10 +63,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
@@ -137,10 +134,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Input tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Output tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
@@ -211,10 +205,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
@@ -237,6 +228,15 @@ server.tool(
     }
   },
 );
+
+function addUsageMsg(response: any, result: string) {
+  result += `\n\n---\n**Usage:**\n`;
+  result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
+  result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
+  result += `- Total tokens: ${response.usage.total_tokens}\n`;
+
+  return result;
+}
 
 server.tool(
   "call-gemini",
@@ -285,10 +285,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
@@ -359,10 +356,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
@@ -516,10 +510,7 @@ server.tool(
       result += response.response;
 
       if (response.usage) {
-        result += `\n\n---\n**Usage:**\n`;
-        result += `- Prompt tokens: ${response.usage.prompt_tokens}\n`;
-        result += `- Completion tokens: ${response.usage.completion_tokens}\n`;
-        result += `- Total tokens: ${response.usage.total_tokens}\n`;
+        result = addUsageMsg(response, result);
       }
 
       return {
