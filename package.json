@@ -1,15 +1,17 @@
 {
   "name": "cross-llm-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "bin": {
     "cross-llm-mcp": "./build/index.js"
   },
   "scripts": {
-    "build": "tsc && chmod 755 build/index.js"
+    "build": "tsc && chmod 755 build/index.js",
+    "postinstall": "node scripts/postinstall.js"
   },
   "files": [
-    "build"
+    "build",
+    "scripts"
   ],
   "main": "index.js",
   "keywords": [
