@@ -1,4 +1,10 @@
-export type LLMProvider = "chatgpt" | "claude" | "deepseek" | "gemini" | "grok";
+export type LLMProvider =
+  | "chatgpt"
+  | "claude"
+  | "deepseek"
+  | "gemini"
+  | "grok"
+  | "kimi";
 
 export type LLMResponse = {
   provider: LLMProvider;
@@ -147,6 +153,36 @@ export type GrokRequest = {
 };
 
 export type GrokResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export type KimiRequest = {
+  model: string;
+  messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>;
+  temperature?: number;
+  max_tokens?: number;
+};
+
+export type KimiResponse = {
   id: string;
   object: string;
   created: number;

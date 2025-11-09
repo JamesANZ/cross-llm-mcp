@@ -13,6 +13,8 @@ import {
   GeminiResponse,
   GrokRequest,
   GrokResponse,
+  KimiRequest,
+  KimiResponse,
 } from "./types.js";
 
 export class LLMClients {
@@ -21,6 +23,7 @@ export class LLMClients {
   private deepseekApiKey: string;
   private geminiApiKey: string;
   private grokApiKey: string;
+  private kimiApiKey: string;
 
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY || "";
@@ -28,6 +31,8 @@ export class LLMClients {
     this.deepseekApiKey = process.env.DEEPSEEK_API_KEY || "";
     this.geminiApiKey = process.env.GEMINI_API_KEY || "";
     this.grokApiKey = process.env.XAI_API_KEY || "";
+    this.kimiApiKey =
+      process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY || "";
   }
 
   async callChatGPT(request: LLMRequest): Promise<LLMResponse> {
@@ -298,6 +303,83 @@ export class LLMClients {
     }
   }
 
+  async callKimi(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.kimiApiKey) {
+      return {
+        provider: "kimi",
+        response: "",
+        error: "Kimi API key not configured",
+      };
+    }
+
+    try {
+      const kimiRequest: KimiRequest = {
+        model:
+          request.model || process.env.DEFAULT_KIMI_MODEL || "moonshot-v1-8k",
+        messages: [
+          {
+            role: "user",
+            content: request.prompt,
+          },
+        ],
+        temperature: request.temperature || 0.7,
+        max_tokens: request.max_tokens || 1000,
+      };
+
+      const kimiBaseUrl =
+        process.env.KIMI_API_BASE_URL ||
+        process.env.MOONSHOT_API_BASE_URL ||
+        "https://api.moonshot.ai/v1";
+
+      const response = await superagent
+        .post(`${kimiBaseUrl.replace(/\/$/, "")}/chat/completions`)
+        .set("Authorization", `Bearer ${this.kimiApiKey}`)
+        .set("Content-Type", "application/json")
+        .send(kimiRequest);
+
+      const kimiResponse: KimiResponse = response.body;
+      const content = kimiResponse.choices[0]?.message?.content || "";
+
+      return {
+        provider: "kimi",
+        response: content,
+        model: kimiResponse.model,
+        usage: {
+          prompt_tokens: kimiResponse.usage.prompt_tokens,
+          completion_tokens: kimiResponse.usage.completion_tokens,
+          total_tokens: kimiResponse.usage.total_tokens,
+        },
+      };
+    } catch (error: any) {
+      let errorMessage = "Unknown error";
+
+      if (error.response) {
+        const status = error.response.status;
+        const body = error.response.body;
+
+        if (status === 401) {
+          errorMessage = "Invalid API key - please check your Kimi API key";
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded - please try again later";
+        } else if (status === 402) {
+          errorMessage = "Payment required - please check your Kimi billing";
+        } else if (status === 400) {
+          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+        } else {
+          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        provider: "kimi",
+        response: "",
+        error: `Kimi API error: ${errorMessage}`,
+      };
+    }
+  }
+
   async callLLM(
     provider: LLMProvider,
     request: LLMRequest,
@@ -313,6 +395,8 @@ export class LLMClients {
         return this.callGemini(request);
       case "grok":
         return this.callGrok(request);
+      case "kimi":
+        return this.callKimi(request);
       default:
         return {
           provider,
@@ -329,6 +413,7 @@ export class LLMClients {
       "deepseek",
       "gemini",
       "grok",
+      "kimi",
     ];
     const promises = providers.map((provider) =>
       this.callLLM(provider, request),

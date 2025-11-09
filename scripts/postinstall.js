@@ -19,9 +19,7 @@ const MCP_SERVER_CONFIG = {
   mcpServers: {
     "cross-llm-mcp": {
       command: "node",
-      args: [
-        join(packageDir, "build", "index.js")
-      ],
+      args: [join(packageDir, "build", "index.js")],
     },
   },
 };
@@ -86,4 +84,3 @@ function createClaudeConfig() {
 if (process.env.npm_lifecycle_event === "postinstall") {
   createClaudeConfig();
 }
-
