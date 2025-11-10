@@ -2,11 +2,11 @@
 
 [![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/JamesANZ/cross-llm-mcp)](https://archestra.ai/mcp-catalog/jamesanz__cross-llm-mcp)
 
-A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, and Gemini. This allows you to call different LLMs from within any MCP-compatible client and combine their responses.
+A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, and Mistral. This allows you to call different LLMs from within any MCP-compatible client and combine their responses.
 
 ## Features
 
-This MCP server offers six specialized tools for interacting with different LLM providers:
+This MCP server offers eight specialized tools for interacting with different LLM providers:
 
 ### 🤖 Individual LLM Tools
 
@@ -115,11 +115,41 @@ Call Moonshot AI's Kimi API with a prompt.
 
 - Kimi response with model information and token usage statistics
 
+#### `call-perplexity`
+
+Call Perplexity AI's API with a prompt.
+
+**Input:**
+
+- `prompt` (string): The prompt to send to Perplexity
+- `model` (optional, string): Perplexity model to use (default: sonar-pro)
+- `temperature` (optional, number): Temperature for response randomness (0-2, default: 0.7)
+- `max_tokens` (optional, number): Maximum tokens in response (default: 1000)
+
+**Output:**
+
+- Perplexity response with model information and token usage statistics
+
+#### `call-mistral`
+
+Call Mistral AI's API with a prompt.
+
+**Input:**
+
+- `prompt` (string): The prompt to send to Mistral
+- `model` (optional, string): Mistral model to use (default: mistral-large-latest)
+- `temperature` (optional, number): Temperature for response randomness (0-2, default: 0.7)
+- `max_tokens` (optional, number): Maximum tokens in response (default: 1000)
+
+**Output:**
+
+- Mistral response with model information and token usage statistics
+
 ### 🔄 Combined Tools
 
 #### `call-all-llms`
 
-Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi) with the same prompt and get combined responses.
+Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral) with the same prompt and get combined responses.
 
 **Input:**
 
@@ -259,6 +289,20 @@ npm run build
 3. Create a new API key
 4. Add it to your Claude Desktop configuration as `KIMI_API_KEY`
 
+### Perplexity AI
+
+1. Visit the [Perplexity AI Platform](https://www.perplexity.ai/hub)
+2. Sign up or log in to your account
+3. Generate a new API key from the developer console
+4. Add it to your Claude Desktop configuration as `PERPLEXITY_API_KEY`
+
+### Mistral AI
+
+1. Visit the [Mistral AI Console](https://console.mistral.ai/)
+2. Sign up or log in to your account
+3. Create a new API key
+4. Add it to your Claude Desktop configuration as `MISTRAL_API_KEY`
+
 ## Usage
 
 ### Configuring Claude Desktop
@@ -277,7 +321,9 @@ Add the following configuration to your Claude Desktop MCP settings:
       "DEEPSEEK_API_KEY": "your_deepseek_api_key_here",
       "GEMINI_API_KEY": "your_gemini_api_key_here",
       "XAI_API_KEY": "your_grok_api_key_here",
-      "KIMI_API_KEY": "your_kimi_api_key_here"
+      "KIMI_API_KEY": "your_kimi_api_key_here",
+      "PERPLEXITY_API_KEY": "your_perplexity_api_key_here",
+      "MISTRAL_API_KEY": "your_mistral_api_key_here"
     }
   }
 }
@@ -392,6 +438,32 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
+#### Call Perplexity
+
+```json
+{
+  "tool": "call-perplexity",
+  "arguments": {
+    "prompt": "Summarize the latest AI research highlights in two paragraphs",
+    "model": "sonar-medium-online",
+    "temperature": 0.6
+  }
+}
+```
+
+#### Call Mistral
+
+```json
+{
+  "tool": "call-mistral",
+  "arguments": {
+    "prompt": "Draft a concise product update for stakeholders",
+    "model": "mistral-large-latest",
+    "temperature": 0.7
+  }
+}
+```
+
 ## Use Cases
 
 ### 1. **Multi-Perspective Analysis**
@@ -448,12 +520,16 @@ The server reads the following environment variables:
 - `GEMINI_API_KEY`: Your Google Gemini API key
 - `XAI_API_KEY`: Your xAI Grok API key
 - `KIMI_API_KEY`: Your Moonshot AI Kimi API key
+- `PERPLEXITY_API_KEY`: Your Perplexity AI API key
+- `MISTRAL_API_KEY`: Your Mistral AI API key
 - `DEFAULT_CHATGPT_MODEL`: Default ChatGPT model (default: gpt-4)
 - `DEFAULT_CLAUDE_MODEL`: Default Claude model (default: claude-3-sonnet-20240229)
 - `DEFAULT_DEEPSEEK_MODEL`: Default DeepSeek model (default: deepseek-chat)
 - `DEFAULT_GEMINI_MODEL`: Default Gemini model (default: gemini-2.5-flash)
 - `DEFAULT_GROK_MODEL`: Default Grok model (default: grok-3)
 - `DEFAULT_KIMI_MODEL`: Default Kimi model (default: moonshot-v1-8k)
+- `DEFAULT_PERPLEXITY_MODEL`: Default Perplexity model (default: sonar-pro)
+- `DEFAULT_MISTRAL_MODEL`: Default Mistral model (default: mistral-large-latest)
 
 ## API Endpoints
 
@@ -464,7 +540,9 @@ This MCP server uses the following API endpoints:
 - **DeepSeek**: `https://api.deepseek.com/v1/chat/completions`
 - **Google Gemini**: `https://generativelanguage.googleapis.com/v1/models/{model}:generateContent`
 - **xAI Grok**: `https://api.x.ai/v1/chat/completions`
-- **Moonshot AI Kimi**: `https://api.moonshot.cn/v1/chat/completions`
+- **Moonshot AI Kimi**: `https://api.moonshot.ai/v1/chat/completions`
+- **Perplexity AI**: `https://api.perplexity.ai/chat/completions`
+- **Mistral AI**: `https://api.mistral.ai/v1/chat/completions`
 
 ## Error Handling
 
@@ -542,12 +620,26 @@ The server includes comprehensive error handling with detailed messages:
 - `moonshot-v1-128k`
 - And other Moonshot AI Kimi models
 
+#### Perplexity Models
+
+- `sonar-pro` (default)
+- `sonar-small-online`
+- `sonar-medium`
+- And other Perplexity models
+
+#### Mistral Models
+
+- `mistral-large-latest` (default)
+- `mistral-small-latest`
+- `mixtral-8x7b-32768`
+- And other Mistral models
+
 ## Project Structure
 
 ```
 cross-llm-mcp/
 ├── src/
-│   ├── index.ts          # Main MCP server with all 5 tools
+│   ├── index.ts          # Main MCP server with all 8 tools
 │   ├── types.ts          # TypeScript type definitions
 │   └── llm-clients.ts    # LLM API client implementations
 ├── build/                # Compiled JavaScript output

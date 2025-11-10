@@ -4,7 +4,9 @@ export type LLMProvider =
   | "deepseek"
   | "gemini"
   | "grok"
-  | "kimi";
+  | "kimi"
+  | "perplexity"
+  | "mistral";
 
 export type LLMResponse = {
   provider: LLMProvider;
@@ -183,6 +185,66 @@ export type KimiRequest = {
 };
 
 export type KimiResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export type PerplexityRequest = {
+  model: string;
+  messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>;
+  temperature?: number;
+  max_tokens?: number;
+};
+
+export type PerplexityResponse = {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: Array<{
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }>;
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
+
+export type MistralRequest = {
+  model: string;
+  messages: Array<{
+    role: "system" | "user" | "assistant";
+    content: string;
+  }>;
+  temperature?: number;
+  max_tokens?: number;
+};
+
+export type MistralResponse = {
   id: string;
   object: string;
   created: number;

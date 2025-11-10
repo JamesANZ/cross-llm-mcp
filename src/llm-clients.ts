@@ -15,6 +15,10 @@ import {
   GrokResponse,
   KimiRequest,
   KimiResponse,
+  PerplexityRequest,
+  PerplexityResponse,
+  MistralRequest,
+  MistralResponse,
 } from "./types.js";
 
 export class LLMClients {
@@ -24,6 +28,8 @@ export class LLMClients {
   private geminiApiKey: string;
   private grokApiKey: string;
   private kimiApiKey: string;
+  private perplexityApiKey: string;
+  private mistralApiKey: string;
 
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY || "";
@@ -33,6 +39,8 @@ export class LLMClients {
     this.grokApiKey = process.env.XAI_API_KEY || "";
     this.kimiApiKey =
       process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY || "";
+    this.perplexityApiKey = process.env.PERPLEXITY_API_KEY || "";
+    this.mistralApiKey = process.env.MISTRAL_API_KEY || "";
   }
 
   async callChatGPT(request: LLMRequest): Promise<LLMResponse> {
@@ -380,6 +388,154 @@ export class LLMClients {
     }
   }
 
+  async callPerplexity(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.perplexityApiKey) {
+      return {
+        provider: "perplexity",
+        response: "",
+        error: "Perplexity API key not configured",
+      };
+    }
+
+    try {
+      const perplexityRequest: PerplexityRequest = {
+        model:
+          request.model || process.env.DEFAULT_PERPLEXITY_MODEL || "sonar-pro",
+        messages: [
+          {
+            role: "user",
+            content: request.prompt,
+          },
+        ],
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.max_tokens || 1000,
+      };
+
+      const response = await superagent
+        .post("https://api.perplexity.ai/chat/completions")
+        .set("Authorization", `Bearer ${this.perplexityApiKey}`)
+        .set("Content-Type", "application/json")
+        .send(perplexityRequest);
+
+      const perplexityResponse: PerplexityResponse = response.body;
+      const content = perplexityResponse.choices[0]?.message?.content || "";
+
+      return {
+        provider: "perplexity",
+        response: content,
+        model: perplexityResponse.model,
+        usage: {
+          prompt_tokens: perplexityResponse.usage.prompt_tokens,
+          completion_tokens: perplexityResponse.usage.completion_tokens,
+          total_tokens: perplexityResponse.usage.total_tokens,
+        },
+      };
+    } catch (error: any) {
+      let errorMessage = "Unknown error";
+
+      if (error.response) {
+        const status = error.response.status;
+        const body = error.response.body;
+
+        if (status === 401) {
+          errorMessage =
+            "Invalid API key - please check your Perplexity API key";
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded - please try again later";
+        } else if (status === 402) {
+          errorMessage =
+            "Payment required - please check your Perplexity billing";
+        } else if (status === 400) {
+          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+        } else {
+          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        provider: "perplexity",
+        response: "",
+        error: `Perplexity API error: ${errorMessage}`,
+      };
+    }
+  }
+
+  async callMistral(request: LLMRequest): Promise<LLMResponse> {
+    if (!this.mistralApiKey) {
+      return {
+        provider: "mistral",
+        response: "",
+        error: "Mistral API key not configured",
+      };
+    }
+
+    try {
+      const mistralRequest: MistralRequest = {
+        model:
+          request.model ||
+          process.env.DEFAULT_MISTRAL_MODEL ||
+          "mistral-large-latest",
+        messages: [
+          {
+            role: "user",
+            content: request.prompt,
+          },
+        ],
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.max_tokens || 1000,
+      };
+
+      const response = await superagent
+        .post("https://api.mistral.ai/v1/chat/completions")
+        .set("Authorization", `Bearer ${this.mistralApiKey}`)
+        .set("Content-Type", "application/json")
+        .send(mistralRequest);
+
+      const mistralResponse: MistralResponse = response.body;
+      const content = mistralResponse.choices[0]?.message?.content || "";
+
+      return {
+        provider: "mistral",
+        response: content,
+        model: mistralResponse.model,
+        usage: {
+          prompt_tokens: mistralResponse.usage.prompt_tokens,
+          completion_tokens: mistralResponse.usage.completion_tokens,
+          total_tokens: mistralResponse.usage.total_tokens,
+        },
+      };
+    } catch (error: any) {
+      let errorMessage = "Unknown error";
+
+      if (error.response) {
+        const status = error.response.status;
+        const body = error.response.body;
+
+        if (status === 401) {
+          errorMessage = "Invalid API key - please check your Mistral API key";
+        } else if (status === 429) {
+          errorMessage = "Rate limit exceeded - please try again later";
+        } else if (status === 402) {
+          errorMessage = "Payment required - please check your Mistral billing";
+        } else if (status === 400) {
+          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+        } else {
+          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return {
+        provider: "mistral",
+        response: "",
+        error: `Mistral API error: ${errorMessage}`,
+      };
+    }
+  }
+
   async callLLM(
     provider: LLMProvider,
     request: LLMRequest,
@@ -397,6 +553,10 @@ export class LLMClients {
         return this.callGrok(request);
       case "kimi":
         return this.callKimi(request);
+      case "perplexity":
+        return this.callPerplexity(request);
+      case "mistral":
+        return this.callMistral(request);
       default:
         return {
           provider,
@@ -414,6 +574,8 @@ export class LLMClients {
       "gemini",
       "grok",
       "kimi",
+      "perplexity",
+      "mistral",
     ];
     const promises = providers.map((provider) =>
       this.callLLM(provider, request),

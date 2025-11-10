@@ -1,6 +1,6 @@
 {
   "name": "cross-llm-mcp",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "type": "module",
   "bin": {
     "cross-llm-mcp": "./build/index.js"
@@ -26,7 +26,9 @@
     "ai",
     "openai",
     "anthropic",
-    "xai"
+    "xai",
+    "mistral",
+    "perplexity"
   ],
   "author": "James Sangalli",
   "license": "MIT",

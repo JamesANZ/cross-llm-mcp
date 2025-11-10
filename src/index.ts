@@ -451,10 +451,152 @@ server.tool(
   },
 );
 
+server.tool(
+  "call-perplexity",
+  "Call Perplexity AI's API with a prompt",
+  {
+    prompt: z.string().describe("The prompt to send to Perplexity"),
+    model: z
+      .string()
+      .optional()
+      .describe("Perplexity model to use (default: sonar-medium-online)"),
+    temperature: z
+      .number()
+      .min(0)
+      .max(2)
+      .optional()
+      .describe("Temperature for response randomness (0-2, default: 0.7)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum tokens in response (default: 1000)"),
+  },
+  async ({ prompt, model, temperature, max_tokens }) => {
+    try {
+      const response = await llmClients.callPerplexity({
+        prompt,
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      if (response.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Perplexity Error:** ${response.error}`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Perplexity Response**\n`;
+      result += `**Model:** ${response.model || "Unknown"}\n\n`;
+      result += response.response;
+
+      if (response.usage) {
+        result = addUsageMsg(response, result);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calling Perplexity: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "call-mistral",
+  "Call Mistral AI's API with a prompt",
+  {
+    prompt: z.string().describe("The prompt to send to Mistral"),
+    model: z
+      .string()
+      .optional()
+      .describe("Mistral model to use (default: mistral-large-latest)"),
+    temperature: z
+      .number()
+      .min(0)
+      .max(2)
+      .optional()
+      .describe("Temperature for response randomness (0-2, default: 0.7)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum tokens in response (default: 1000)"),
+  },
+  async ({ prompt, model, temperature, max_tokens }) => {
+    try {
+      const response = await llmClients.callMistral({
+        prompt,
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      if (response.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Mistral Error:** ${response.error}`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Mistral Response**\n`;
+      result += `**Model:** ${response.model || "Unknown"}\n\n`;
+      result += response.response;
+
+      if (response.usage) {
+        result = addUsageMsg(response, result);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calling Mistral: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
 // Combined tool that calls all LLMs
 server.tool(
   "call-all-llms",
-  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi) with the same prompt and get combined responses",
+  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral) with the same prompt and get combined responses",
   {
     prompt: z.string().describe("The prompt to send to all LLMs"),
     temperature: z
@@ -536,7 +678,16 @@ server.tool(
   "Call a specific LLM provider by name",
   {
     provider: z
-      .enum(["chatgpt", "claude", "deepseek", "gemini", "grok", "kimi"])
+      .enum([
+        "chatgpt",
+        "claude",
+        "deepseek",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "mistral",
+      ])
       .describe("The LLM provider to call"),
     prompt: z.string().describe("The prompt to send to the LLM"),
     model: z
