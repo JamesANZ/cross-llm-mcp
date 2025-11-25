@@ -6,7 +6,12 @@ A Model Context Protocol (MCP) server that provides access to multiple Large Lan
 
 ## Features
 
-This MCP server offers eight specialized tools for interacting with different LLM providers:
+This MCP server offers:
+
+- **Eight specialized tools** for interacting with different LLM providers
+- **User preference system** with tag-based model selection
+- **Model tagging** to identify models by their strengths (coding, business, reasoning, etc.)
+- **Cost preference settings** to favor flagship or cheaper models
 
 ### 🤖 Individual LLM Tools
 
@@ -223,6 +228,157 @@ Call a specific LLM provider by name.
 **Output:**
 
 - Response from the specified LLM with model information and usage statistics
+
+### ⚙️ User Preferences & Model Tagging
+
+The server includes a comprehensive user preference system that allows you to customize model selection based on question types and tags.
+
+#### `get-user-preferences`
+
+Get your current user preferences including default model, cost preference, and tag-based model preferences.
+
+**Input:**
+
+- No parameters required
+
+**Output:**
+
+- Current preferences including:
+  - Default model setting
+  - Cost preference (flagship vs cheaper)
+  - Tag-based preferences (which model to use for each tag)
+  - Available tags and model counts
+
+**Example:**
+
+```json
+{
+  "tool": "get-user-preferences",
+  "arguments": {}
+}
+```
+
+#### `set-user-preferences`
+
+Set user preferences for default model, cost preference, and tag-based model selection.
+
+**Input:**
+
+- `defaultModel` (optional, string): Default model name (e.g., 'deepseek-r1', 'gpt-4o')
+- `costPreference` (optional, "flagship" | "cheaper"): Cost preference setting
+- `tagPreferences` (optional, object): Map tags to model names
+
+**Output:**
+
+- Confirmation of updated preferences with model details
+
+**Example - Setting Tag-Based Preferences:**
+
+```json
+{
+  "tool": "set-user-preferences",
+  "arguments": {
+    "tagPreferences": {
+      "coding": "deepseek-r1",
+      "general": "gpt-4o",
+      "business": "claude-3.5-sonnet-20241022"
+    }
+  }
+}
+```
+
+This allows you to automatically use DeepSeek R1 for coding questions, GPT-4o for general queries, and Claude 3.5 Sonnet for business-related tasks.
+
+#### `get-models-by-tag`
+
+Get all models that match a specific tag to help you choose the best model for your needs.
+
+**Input:**
+
+- `tag` (string): One of: "coding", "business", "reasoning", "math", "creative", "general"
+
+**Output:**
+
+- List of all models with the specified tag, grouped by provider, including:
+  - Model name
+  - Cost tier (flagship, standard, budget)
+  - All tags for the model
+  - Description
+
+**Example:**
+
+```json
+{
+  "tool": "get-models-by-tag",
+  "arguments": {
+    "tag": "coding"
+  }
+}
+```
+
+### Model Tags
+
+Models are tagged based on their strengths and ideal use cases:
+
+- **coding**: Models optimized for programming, code generation, and software development
+  - Examples: `deepseek-r1`, `deepseek-coder`, `gpt-4o`, `claude-3.5-sonnet-20241022`
+
+- **business**: Models suited for business writing, analysis, and professional communication
+  - Examples: `claude-3-opus-20240229`, `gpt-4o`, `gemini-1.5-pro`
+
+- **reasoning**: Models with advanced reasoning capabilities for complex problem-solving
+  - Examples: `deepseek-r1`, `o1-preview`, `claude-3.5-sonnet-20241022`
+
+- **math**: Models specialized for mathematical problem-solving
+  - Examples: `deepseek-r1`, `o1-preview`, `o1-mini`
+
+- **creative**: Models optimized for creative writing, storytelling, and artistic content
+  - Examples: `gpt-4o`, `claude-3-opus-20240229`, `gemini-1.5-pro`
+
+- **general**: Versatile models for general-purpose tasks
+  - Examples: `gpt-4o-mini`, `claude-3-haiku-20240307`, `gemini-1.5-flash`
+
+### Preference Storage
+
+User preferences are stored in:
+
+- **Unix/macOS**: `~/.cross-llm-mcp/preferences.json`
+- **Windows**: `%APPDATA%/cross-llm-mcp/preferences.json`
+- **Fallback**: Project directory `.cross-llm-mcp/preferences.json`
+
+Preferences can also be set via environment variables:
+
+- `CROSS_LLM_DEFAULT_MODEL`: Default model name
+- `CROSS_LLM_COST_PREFERENCE`: "flagship" or "cheaper"
+
+### Example: Setting Up Tag-Based Preferences
+
+Here's a complete example of setting up preferences for different question types:
+
+```json
+{
+  "tool": "set-user-preferences",
+  "arguments": {
+    "defaultModel": "gpt-4o",
+    "costPreference": "cheaper",
+    "tagPreferences": {
+      "coding": "deepseek-r1",
+      "general": "gpt-4o",
+      "business": "claude-3.5-sonnet-20241022",
+      "reasoning": "deepseek-r1",
+      "math": "deepseek-r1",
+      "creative": "gpt-4o"
+    }
+  }
+}
+```
+
+This configuration will:
+
+- Use DeepSeek R1 for coding, reasoning, and math questions
+- Use GPT-4o for general and creative queries
+- Use Claude 3.5 Sonnet for business-related tasks
+- Prefer cheaper models when multiple options are available
 
 ## Installation
 
@@ -486,6 +642,10 @@ Choose the most cost-effective LLM for your specific use case.
 
 Cross-reference responses from multiple models to validate information.
 
+### 6. **Intelligent Model Selection**
+
+Use tag-based preferences to automatically select the best model for each question type. For example, use DeepSeek R1 for coding questions and GPT-4o for general queries.
+
 ## Configuration
 
 ### Claude Desktop Setup
@@ -530,6 +690,8 @@ The server reads the following environment variables:
 - `DEFAULT_KIMI_MODEL`: Default Kimi model (default: moonshot-v1-8k)
 - `DEFAULT_PERPLEXITY_MODEL`: Default Perplexity model (default: sonar-pro)
 - `DEFAULT_MISTRAL_MODEL`: Default Mistral model (default: mistral-large-latest)
+- `CROSS_LLM_DEFAULT_MODEL`: User's default model preference
+- `CROSS_LLM_COST_PREFERENCE`: User's cost preference ("flagship" or "cheaper")
 
 ## API Endpoints
 
@@ -579,6 +741,8 @@ The server includes comprehensive error handling with detailed messages:
 ```
 
 ### Supported Models
+
+All models are tagged with their strengths (coding, business, reasoning, math, creative, general). Use the `get-models-by-tag` tool to find models optimized for specific use cases.
 
 #### ChatGPT Models
 
@@ -639,9 +803,11 @@ The server includes comprehensive error handling with detailed messages:
 ```
 cross-llm-mcp/
 ├── src/
-│   ├── index.ts          # Main MCP server with all 8 tools
+│   ├── index.ts          # Main MCP server with all tools
 │   ├── types.ts          # TypeScript type definitions
-│   └── llm-clients.ts    # LLM API client implementations
+│   ├── llm-clients.ts    # LLM API client implementations
+│   ├── model-registry.ts # Model registry with tags and metadata
+│   └── preferences.ts    # User preferences management
 ├── build/                # Compiled JavaScript output
 ├── env.example           # Environment variables template
 ├── example-usage.md      # Detailed usage examples

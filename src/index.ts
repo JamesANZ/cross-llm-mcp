@@ -2,7 +2,24 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { LLMClients } from "./llm-clients.js";
-import { LLMProvider } from "./types.js";
+import {
+  LLMProvider,
+  ModelTag,
+  CostPreference,
+  ALL_LLM_PROVIDERS,
+} from "./types.js";
+import {
+  loadPreferences,
+  savePreferences,
+  getPreferencesFilePath,
+} from "./preferences.js";
+import {
+  getModelsByTag,
+  getAllTags,
+  getAllModels,
+  findModelByName,
+  getModelRegistryTimestamp,
+} from "./model-registry.js";
 
 const server = new McpServer({
   name: "cross-llm-mcp",
@@ -749,6 +766,324 @@ server.tool(
           {
             type: "text",
             text: `Error calling ${provider}: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+// User preferences tools
+server.tool(
+  "get-user-preferences",
+  "Get current user preferences including default model and cost preference",
+  {},
+  async () => {
+    try {
+      const prefs = loadPreferences();
+      const prefsPath = getPreferencesFilePath();
+      const allTags = getAllTags();
+      const allModels = getAllModels();
+
+      let result = `**User Preferences**\n\n`;
+      result += `**Default Model:** ${prefs.defaultModel || "Not set"}\n`;
+      result += `**Cost Preference:** ${prefs.costPreference || "Not set"}\n`;
+      result += `**Preferences File:** ${prefsPath}\n\n`;
+
+      // Show tag preferences
+      if (
+        prefs.tagPreferences &&
+        Object.keys(prefs.tagPreferences).length > 0
+      ) {
+        result += `**Tag-Based Preferences:**\n`;
+        allTags.forEach((tag) => {
+          const modelName = prefs.tagPreferences?.[tag];
+          if (modelName) {
+            const modelInfo = findModelByName(modelName);
+            result += `- **${tag}**: ${modelName}`;
+            if (modelInfo) {
+              result += ` (${modelInfo.provider})`;
+            }
+            result += `\n`;
+          }
+        });
+        result += `\n`;
+      } else {
+        result += `**Tag-Based Preferences:** Not set\n\n`;
+      }
+
+      result += `**Available Tags:** ${allTags.join(", ")}\n\n`;
+
+      result += `**Total Models Available:** ${allModels.length}\n`;
+      result += `- By Provider:\n`;
+      ALL_LLM_PROVIDERS.forEach((provider) => {
+        const count = allModels.filter((m) => m.provider === provider).length;
+        result += `  - ${provider}: ${count} models\n`;
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting preferences: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "set-user-preferences",
+  "Set user preferences for default model, cost preference, and tag-based model preferences (e.g., use deepseek for coding questions, chatgpt for general queries)",
+  {
+    defaultModel: z
+      .string()
+      .optional()
+      .describe(
+        "Default model name (e.g., 'deepseek-r1', 'gpt-4o'). Must match a model in the registry.",
+      ),
+    costPreference: z
+      .enum(["flagship", "cheaper"])
+      .optional()
+      .describe(
+        "Cost preference: 'flagship' for best models or 'cheaper' for cost-effective models",
+      ),
+    tagPreferences: z
+      .record(
+        z.enum([
+          "coding",
+          "business",
+          "reasoning",
+          "math",
+          "creative",
+          "general",
+        ]),
+        z.string(),
+      )
+      .optional()
+      .describe(
+        "Tag-based model preferences. Map tags to model names (e.g., { 'coding': 'deepseek-r1', 'general': 'gpt-4o' })",
+      ),
+  },
+  async ({ defaultModel, costPreference, tagPreferences }) => {
+    try {
+      const prefs: {
+        defaultModel?: string;
+        costPreference?: CostPreference;
+        tagPreferences?: { [tag: string]: string };
+      } = {};
+
+      // Validate default model if provided
+      if (defaultModel) {
+        const modelInfo = findModelByName(defaultModel);
+        if (!modelInfo) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `Error: Model "${defaultModel}" not found in registry. Use get-models-by-tag to see available models.`,
+              },
+            ],
+          };
+        }
+        prefs.defaultModel = defaultModel;
+      }
+
+      if (costPreference) {
+        prefs.costPreference = costPreference;
+      }
+
+      // Validate and set tag preferences
+      const warnings: string[] = [];
+      if (tagPreferences) {
+        const validatedTagPrefs: { [tag: string]: string } = {};
+        for (const [tag, modelName] of Object.entries(tagPreferences)) {
+          const modelInfo = findModelByName(modelName);
+          if (!modelInfo) {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Error: Model "${modelName}" for tag "${tag}" not found in registry. Use get-models-by-tag to see available models.`,
+                },
+              ],
+            };
+          }
+          // Warn if the model doesn't have the tag, but allow it
+          if (!modelInfo.tags.includes(tag as ModelTag)) {
+            warnings.push(
+              `Note: Model "${modelName}" does not have tag "${tag}" (has: ${modelInfo.tags.join(", ")})`,
+            );
+          }
+          validatedTagPrefs[tag] = modelName;
+        }
+        prefs.tagPreferences = validatedTagPrefs;
+      }
+
+      // Save preferences
+      savePreferences(prefs);
+
+      let result = `**Preferences Updated**\n\n`;
+      if (defaultModel) {
+        const modelInfo = findModelByName(defaultModel);
+        result += `**Default Model:** ${defaultModel}\n`;
+        result += `  - Provider: ${modelInfo?.provider}\n`;
+        result += `  - Tags: ${modelInfo?.tags.join(", ")}\n`;
+        result += `  - Cost Tier: ${modelInfo?.costTier}\n\n`;
+      }
+      if (costPreference) {
+        result += `**Cost Preference:** ${costPreference}\n\n`;
+      }
+      if (tagPreferences && Object.keys(tagPreferences).length > 0) {
+        result += `**Tag-Based Preferences:**\n`;
+        for (const [tag, modelName] of Object.entries(tagPreferences)) {
+          const modelInfo = findModelByName(modelName);
+          result += `- **${tag}**: ${modelName} (${modelInfo?.provider})\n`;
+        }
+        result += `\n`;
+      }
+      if (warnings.length > 0) {
+        result += `**Warnings:**\n`;
+        warnings.forEach((warning) => {
+          result += `- ${warning}\n`;
+        });
+        result += `\n`;
+      }
+      result += `Preferences saved successfully.`;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error setting preferences: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "get-models-by-tag",
+  "Get all models matching a specific tag (coding, business, reasoning, math, creative, general)",
+  {
+    tag: z
+      .enum(["coding", "business", "reasoning", "math", "creative", "general"])
+      .describe("Tag to filter models by"),
+  },
+  async ({ tag }) => {
+    try {
+      const models = getModelsByTag(tag);
+
+      if (models.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No models found with tag "${tag}"`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Models with tag "${tag}"** (${models.length} found)\n\n`;
+
+      // Group by provider
+      ALL_LLM_PROVIDERS.forEach((provider) => {
+        const providerModels = models.filter((m) => m.provider === provider);
+        if (providerModels.length > 0) {
+          result += `## ${provider.toUpperCase()}\n\n`;
+          providerModels.forEach((model) => {
+            result += `- **${model.name}**\n`;
+            result += `  - Cost Tier: ${model.costTier}\n`;
+            result += `  - Tags: ${model.tags.join(", ")}\n`;
+            if (model.description) {
+              result += `  - Description: ${model.description}\n`;
+            }
+            result += `\n`;
+          });
+        }
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting models by tag: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "get-model-registry-info",
+  "Get information about the model registry including the last updated timestamp",
+  {},
+  async () => {
+    try {
+      const timestamp = getModelRegistryTimestamp();
+      const date = new Date(timestamp);
+      const allModels = getAllModels();
+
+      let result = `**Model Registry Information**\n\n`;
+      result += `**Last Updated:** ${timestamp}\n`;
+      result += `**Date:** ${date.toLocaleDateString()}\n`;
+      result += `**Time:** ${date.toLocaleTimeString()}\n`;
+      result += `**Total Models:** ${allModels.length}\n\n`;
+
+      // Count by provider
+      result += `**Models by Provider:**\n`;
+      ALL_LLM_PROVIDERS.forEach((provider) => {
+        const count = allModels.filter((m) => m.provider === provider).length;
+        if (count > 0) {
+          result += `- ${provider}: ${count} models\n`;
+        }
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting model registry info: ${error.message || "Unknown error"}`,
           },
         ],
       };

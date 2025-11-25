@@ -8,6 +8,18 @@ export type LLMProvider =
   | "perplexity"
   | "mistral";
 
+// All available LLM providers in order
+export const ALL_LLM_PROVIDERS: readonly LLMProvider[] = [
+  "chatgpt",
+  "claude",
+  "deepseek",
+  "gemini",
+  "grok",
+  "kimi",
+  "perplexity",
+  "mistral",
+] as const;
+
 export type LLMResponse = {
   provider: LLMProvider;
   response: string;
@@ -261,5 +273,34 @@ export type MistralResponse = {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+  };
+};
+
+// Model tagging and preferences types
+export type ModelTag =
+  | "coding"
+  | "business"
+  | "reasoning"
+  | "math"
+  | "creative"
+  | "general";
+
+export type CostPreference = "flagship" | "cheaper";
+
+export type CostTier = "flagship" | "standard" | "budget";
+
+export type ModelInfo = {
+  name: string;
+  provider: LLMProvider;
+  tags: ModelTag[];
+  costTier: CostTier;
+  description?: string;
+};
+
+export type UserPreferences = {
+  defaultModel?: string;
+  costPreference?: CostPreference;
+  tagPreferences?: {
+    [tag in ModelTag]?: string; // Model name for this tag
   };
 };

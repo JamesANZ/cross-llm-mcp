@@ -19,6 +19,7 @@ import {
   PerplexityResponse,
   MistralRequest,
   MistralResponse,
+  ALL_LLM_PROVIDERS,
 } from "./types.js";
 
 export class LLMClients {
@@ -567,17 +568,7 @@ export class LLMClients {
   }
 
   async callAllLLMs(request: LLMRequest): Promise<LLMResponse[]> {
-    const providers: LLMProvider[] = [
-      "chatgpt",
-      "claude",
-      "deepseek",
-      "gemini",
-      "grok",
-      "kimi",
-      "perplexity",
-      "mistral",
-    ];
-    const promises = providers.map((provider) =>
+    const promises = ALL_LLM_PROVIDERS.map((provider) =>
       this.callLLM(provider, request),
     );
     return Promise.all(promises);
