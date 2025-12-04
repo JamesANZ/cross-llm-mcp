@@ -401,6 +401,87 @@ npm install
 npm run build
 ```
 
+### Installing in Cursor
+
+You can install this MCP server directly in Cursor using the one-click install link:
+
+**🔗 [Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=cross-llm-mcp&config=eyJjcm9zcy1sbG0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiY3Jvc3MtbGxtLW1jcCJdfX0=)**
+
+This will automatically configure the MCP server using `npx`. After installation, you'll need to add your API keys in Cursor settings (see below).
+
+**Generate a new install link:** Run `npm run generate-cursor-link` to generate a fresh install link with the latest configuration.
+
+**Alternative: Manual Installation**
+
+Or manually add it to your Cursor MCP settings:
+
+1. Open Cursor Settings (⌘, on Mac or Ctrl+, on Windows/Linux)
+2. Navigate to **Features** → **Model Context Protocol**
+3. Click **Add Server** or **Edit Config**
+4. Add the following configuration:
+
+```json
+{
+  "cross-llm-mcp": {
+    "command": "npx",
+    "args": ["-y", "cross-llm-mcp"],
+    "env": {
+      "OPENAI_API_KEY": "your_openai_api_key_here",
+      "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+      "DEEPSEEK_API_KEY": "your_deepseek_api_key_here",
+      "GEMINI_API_KEY": "your_gemini_api_key_here",
+      "XAI_API_KEY": "your_grok_api_key_here",
+      "KIMI_API_KEY": "your_kimi_api_key_here",
+      "PERPLEXITY_API_KEY": "your_perplexity_api_key_here",
+      "MISTRAL_API_KEY": "your_mistral_api_key_here"
+    }
+  }
+}
+```
+
+**After installation, add your API keys:**
+
+1. In Cursor, go to Settings → Features → Model Context Protocol
+2. Find `cross-llm-mcp` in your server list
+3. Click to edit and add your API keys in the `env` section:
+
+```json
+{
+  "env": {
+    "OPENAI_API_KEY": "your_openai_api_key_here",
+    "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+    "DEEPSEEK_API_KEY": "your_deepseek_api_key_here",
+    "GEMINI_API_KEY": "your_gemini_api_key_here",
+    "XAI_API_KEY": "your_grok_api_key_here",
+    "KIMI_API_KEY": "your_kimi_api_key_here",
+    "PERPLEXITY_API_KEY": "your_perplexity_api_key_here",
+    "MISTRAL_API_KEY": "your_mistral_api_key_here"
+  }
+}
+```
+
+**Note:** If you've installed the package globally or locally, you can use:
+
+```json
+{
+  "cross-llm-mcp": {
+    "command": "node",
+    "args": ["/path/to/cross-llm-mcp/build/index.js"],
+    "cwd": "/path/to/cross-llm-mcp",
+    "env": {
+      "OPENAI_API_KEY": "your_openai_api_key_here",
+      "ANTHROPIC_API_KEY": "your_anthropic_api_key_here",
+      "DEEPSEEK_API_KEY": "your_deepseek_api_key_here",
+      "GEMINI_API_KEY": "your_gemini_api_key_here",
+      "XAI_API_KEY": "your_grok_api_key_here",
+      "KIMI_API_KEY": "your_kimi_api_key_here",
+      "PERPLEXITY_API_KEY": "your_perplexity_api_key_here",
+      "MISTRAL_API_KEY": "your_mistral_api_key_here"
+    }
+  }
+}
+```
+
 ## Getting API Keys
 
 ### OpenAI/ChatGPT
