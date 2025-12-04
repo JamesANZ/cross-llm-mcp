@@ -407,6 +407,10 @@ You can install this MCP server directly in Cursor using the one-click install l
 
 **🔗 [Install in Cursor](cursor://anysphere.cursor-deeplink/mcp/install?name=cross-llm-mcp&config=eyJjcm9zcy1sbG0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiY3Jvc3MtbGxtLW1jcCJdfX0=)**
 
+```
+cursor://anysphere.cursor-deeplink/mcp/install?name=cross-llm-mcp&config=eyJjcm9zcy1sbG0tbWNwIjp7ImNvbW1hbmQiOiJucHgiLCJhcmdzIjpbIi15IiwiY3Jvc3MtbGxtLW1jcCJdfX0=
+```
+
 This will automatically configure the MCP server using `npx`. After installation, you'll need to add your API keys in Cursor settings (see below).
 
 **Alternative: Manual Installation**
