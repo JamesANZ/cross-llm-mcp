@@ -20,6 +20,13 @@ import {
   findModelByName,
   getModelRegistryTimestamp,
 } from "./model-registry.js";
+import {
+  getLogEntries,
+  deleteLogEntries,
+  clearAllLogs,
+  getLogStats,
+  getPromptsLogFilePath,
+} from "./prompt-logger.js";
 
 const server = new McpServer({
   name: "cross-llm-mcp",
@@ -1084,6 +1091,297 @@ server.tool(
           {
             type: "text",
             text: `Error getting model registry info: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+// Prompt logging tools
+server.tool(
+  "get-prompt-history",
+  "Get history of prompts sent to LLMs with optional filters",
+  {
+    provider: z
+      .enum([
+        "chatgpt",
+        "claude",
+        "deepseek",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "mistral",
+      ])
+      .optional()
+      .describe("Filter by LLM provider"),
+    model: z.string().optional().describe("Filter by model name"),
+    startDate: z
+      .string()
+      .optional()
+      .describe("Filter entries from this date (ISO format: YYYY-MM-DD)"),
+    endDate: z
+      .string()
+      .optional()
+      .describe("Filter entries until this date (ISO format: YYYY-MM-DD)"),
+    searchText: z
+      .string()
+      .optional()
+      .describe("Search for text in prompt content"),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum number of entries to return (default: all)"),
+  },
+  async ({ provider, model, startDate, endDate, searchText, limit }) => {
+    try {
+      const entries = getLogEntries({
+        provider,
+        model,
+        startDate,
+        endDate,
+        searchText,
+        limit,
+      });
+
+      if (entries.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No prompt history entries found matching the criteria.",
+            },
+          ],
+        };
+      }
+
+      let result = `**Prompt History** (${entries.length} entries)\n\n`;
+
+      entries.forEach((entry, index) => {
+        result += `## Entry ${index + 1}\n\n`;
+        result += `**ID:** ${entry.id}\n`;
+        result += `**Timestamp:** ${entry.timestamp}\n`;
+        result += `**Provider:** ${entry.provider}\n`;
+        if (entry.model) {
+          result += `**Model:** ${entry.model}\n`;
+        }
+        result += `**Prompt:** ${entry.prompt.substring(0, 200)}${
+          entry.prompt.length > 200 ? "..." : ""
+        }\n`;
+        if (entry.response) {
+          result += `**Response:** ${entry.response.substring(0, 200)}${
+            entry.response.length > 200 ? "..." : ""
+          }\n`;
+        }
+        if (entry.error) {
+          result += `**Error:** ${entry.error}\n`;
+        }
+        if (entry.usage) {
+          result += `**Tokens:** ${entry.usage.total_tokens || "N/A"} (prompt: ${
+            entry.usage.prompt_tokens || "N/A"
+          }, completion: ${entry.usage.completion_tokens || "N/A"})\n`;
+        }
+        if (entry.duration_ms) {
+          result += `**Duration:** ${entry.duration_ms}ms\n`;
+        }
+        result += `\n---\n\n`;
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting prompt history: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "delete-prompt-entries",
+  "Delete prompt log entries matching specified criteria",
+  {
+    id: z.string().optional().describe("Delete entry with specific ID"),
+    provider: z
+      .enum([
+        "chatgpt",
+        "claude",
+        "deepseek",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "mistral",
+      ])
+      .optional()
+      .describe("Delete entries from this provider"),
+    model: z.string().optional().describe("Delete entries for this model"),
+    startDate: z
+      .string()
+      .optional()
+      .describe("Delete entries from this date (ISO format: YYYY-MM-DD)"),
+    endDate: z
+      .string()
+      .optional()
+      .describe("Delete entries until this date (ISO format: YYYY-MM-DD)"),
+    olderThanDays: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Delete entries older than this many days"),
+  },
+  async ({ id, provider, model, startDate, endDate, olderThanDays }) => {
+    try {
+      const deletedCount = deleteLogEntries({
+        id,
+        provider,
+        model,
+        startDate,
+        endDate,
+        olderThanDays,
+      });
+
+      let result = `**Deleted ${deletedCount} prompt log entry(ies)**\n\n`;
+      if (id) {
+        result += `Deleted entry with ID: ${id}\n`;
+      } else {
+        const criteria: string[] = [];
+        if (provider) criteria.push(`provider: ${provider}`);
+        if (model) criteria.push(`model: ${model}`);
+        if (startDate) criteria.push(`from: ${startDate}`);
+        if (endDate) criteria.push(`until: ${endDate}`);
+        if (olderThanDays) criteria.push(`older than: ${olderThanDays} days`);
+        if (criteria.length > 0) {
+          result += `Criteria: ${criteria.join(", ")}\n`;
+        } else {
+          result += `No criteria specified - no entries deleted.\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error deleting prompt entries: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "clear-prompt-history",
+  "Clear all prompt log entries",
+  {},
+  async () => {
+    try {
+      const deletedCount = clearAllLogs();
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Cleared all prompt history**\n\nDeleted ${deletedCount} entry(ies).`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error clearing prompt history: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "get-prompt-stats",
+  "Get statistics about prompt logs (total entries, by provider, by model, token usage, etc.)",
+  {},
+  async () => {
+    try {
+      const stats = getLogStats();
+      const logPath = getPromptsLogFilePath();
+
+      let result = `**Prompt Log Statistics**\n\n`;
+      result += `**Log File:** ${logPath}\n\n`;
+      result += `**Total Entries:** ${stats.totalEntries}\n\n`;
+
+      if (stats.totalEntries === 0) {
+        result += `No entries in log file.`;
+      } else {
+        result += `**By Provider:**\n`;
+        ALL_LLM_PROVIDERS.forEach((provider) => {
+          const count = stats.byProvider[provider] || 0;
+          if (count > 0) {
+            result += `- ${provider}: ${count} entries\n`;
+          }
+        });
+
+        result += `\n**By Model:**\n`;
+        const modelEntries = Object.entries(stats.byModel).sort(
+          (a, b) => b[1] - a[1],
+        );
+        if (modelEntries.length > 0) {
+          modelEntries.forEach(([model, count]) => {
+            result += `- ${model}: ${count} entries\n`;
+          });
+        } else {
+          result += `- No model information available\n`;
+        }
+
+        result += `\n**Total Tokens Used:** ${stats.totalTokens.toLocaleString()}\n`;
+
+        if (stats.oldestEntry) {
+          result += `\n**Oldest Entry:** ${stats.oldestEntry}\n`;
+        }
+        if (stats.newestEntry) {
+          result += `**Newest Entry:** ${stats.newestEntry}\n`;
+        }
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting prompt stats: ${error.message || "Unknown error"}`,
           },
         ],
       };

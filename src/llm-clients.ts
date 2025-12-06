@@ -21,6 +21,7 @@ import {
   MistralResponse,
   ALL_LLM_PROVIDERS,
 } from "./types.js";
+import { appendLogEntry } from "./prompt-logger.js";
 
 export class LLMClients {
   private openaiApiKey: string;
@@ -44,13 +45,42 @@ export class LLMClients {
     this.mistralApiKey = process.env.MISTRAL_API_KEY || "";
   }
 
+  // Helper function to parse API errors into user-friendly messages
+  private parseApiError(error: any, providerName: string): string {
+    let errorMessage = "Unknown error";
+
+    if (error.response) {
+      const status = error.response.status;
+      const body = error.response.body;
+
+      if (status === 401) {
+        errorMessage = `Invalid API key - please check your ${providerName} API key`;
+      } else if (status === 429) {
+        errorMessage = "Rate limit exceeded - please try again later";
+      } else if (status === 402) {
+        errorMessage = `Payment required - please check your ${providerName} billing`;
+      } else if (status === 400) {
+        errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
+      } else {
+        errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
+      }
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
+    return errorMessage;
+  }
+
   async callChatGPT(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.openaiApiKey) {
-      return {
-        provider: "chatgpt",
+      const response = {
+        provider: "chatgpt" as LLMProvider,
         response: "",
         error: "OpenAI API key not configured",
       };
+      appendLogEntry("chatgpt", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -75,8 +105,8 @@ export class LLMClients {
       const chatGPTResponse: ChatGPTResponse = response.body;
       const content = chatGPTResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "chatgpt",
+      const result = {
+        provider: "chatgpt" as LLMProvider,
         response: content,
         model: chatGPTResponse.model,
         usage: {
@@ -85,22 +115,29 @@ export class LLMClients {
           total_tokens: chatGPTResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("chatgpt", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      return {
-        provider: "chatgpt",
+      const result = {
+        provider: "chatgpt" as LLMProvider,
         response: "",
         error: `ChatGPT API error: ${error}`,
       };
+      appendLogEntry("chatgpt", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callClaude(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.anthropicApiKey) {
-      return {
-        provider: "claude",
+      const response = {
+        provider: "claude" as LLMProvider,
         response: "",
         error: "Anthropic API key not configured",
       };
+      appendLogEntry("claude", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -129,8 +166,8 @@ export class LLMClients {
       const claudeResponse: ClaudeResponse = response.body;
       const content = claudeResponse.content[0]?.text || "";
 
-      return {
-        provider: "claude",
+      const result = {
+        provider: "claude" as LLMProvider,
         response: content,
         model: claudeResponse.model,
         usage: {
@@ -141,22 +178,29 @@ export class LLMClients {
             claudeResponse.usage.output_tokens,
         },
       };
+      appendLogEntry("claude", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      return {
-        provider: "claude",
+      const result = {
+        provider: "claude" as LLMProvider,
         response: "",
         error: `Claude API error: ${error}`,
       };
+      appendLogEntry("claude", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callDeepSeek(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.deepseekApiKey) {
-      return {
-        provider: "deepseek",
+      const response = {
+        provider: "deepseek" as LLMProvider,
         response: "",
         error: "DeepSeek API key not configured",
       };
+      appendLogEntry("deepseek", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -184,8 +228,8 @@ export class LLMClients {
       const deepseekResponse: DeepSeekResponse = response.body;
       const content = deepseekResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "deepseek",
+      const result = {
+        provider: "deepseek" as LLMProvider,
         response: content,
         model: deepseekResponse.model,
         usage: {
@@ -194,22 +238,29 @@ export class LLMClients {
           total_tokens: deepseekResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("deepseek", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      return {
-        provider: "deepseek",
+      const result = {
+        provider: "deepseek" as LLMProvider,
         response: "",
         error: `DeepSeek API error: ${error}`,
       };
+      appendLogEntry("deepseek", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callGemini(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.geminiApiKey) {
-      return {
-        provider: "gemini",
+      const response = {
+        provider: "gemini" as LLMProvider,
         response: "",
         error: "Gemini API key not configured",
       };
+      appendLogEntry("gemini", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -242,8 +293,8 @@ export class LLMClients {
       const content =
         geminiResponse.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-      return {
-        provider: "gemini",
+      const result = {
+        provider: "gemini" as LLMProvider,
         response: content,
         model: model,
         usage: {
@@ -253,22 +304,29 @@ export class LLMClients {
           total_tokens: geminiResponse.usageMetadata?.totalTokenCount || 0,
         },
       };
+      appendLogEntry("gemini", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      return {
-        provider: "gemini",
+      const result = {
+        provider: "gemini" as LLMProvider,
         response: "",
         error: `Gemini API error: ${error}`,
       };
+      appendLogEntry("gemini", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callGrok(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.grokApiKey) {
-      return {
-        provider: "grok",
+      const response = {
+        provider: "grok" as LLMProvider,
         response: "",
         error: "Grok API key not configured",
       };
+      appendLogEntry("grok", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -293,8 +351,8 @@ export class LLMClients {
       const grokResponse: GrokResponse = response.body;
       const content = grokResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "grok",
+      const result = {
+        provider: "grok" as LLMProvider,
         response: content,
         model: grokResponse.model,
         usage: {
@@ -303,22 +361,29 @@ export class LLMClients {
           total_tokens: grokResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("grok", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      return {
-        provider: "grok",
+      const result = {
+        provider: "grok" as LLMProvider,
         response: "",
         error: `Grok API error: ${error}`,
       };
+      appendLogEntry("grok", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callKimi(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.kimiApiKey) {
-      return {
-        provider: "kimi",
+      const response = {
+        provider: "kimi" as LLMProvider,
         response: "",
         error: "Kimi API key not configured",
       };
+      appendLogEntry("kimi", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -349,8 +414,8 @@ export class LLMClients {
       const kimiResponse: KimiResponse = response.body;
       const content = kimiResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "kimi",
+      const result = {
+        provider: "kimi" as LLMProvider,
         response: content,
         model: kimiResponse.model,
         usage: {
@@ -359,43 +424,30 @@ export class LLMClients {
           total_tokens: kimiResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("kimi", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your Kimi API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage = "Payment required - please check your Kimi billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return {
-        provider: "kimi",
+      const errorMessage = this.parseApiError(error, "Kimi");
+      const result = {
+        provider: "kimi" as LLMProvider,
         response: "",
         error: `Kimi API error: ${errorMessage}`,
       };
+      appendLogEntry("kimi", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callPerplexity(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.perplexityApiKey) {
-      return {
-        provider: "perplexity",
+      const response = {
+        provider: "perplexity" as LLMProvider,
         response: "",
         error: "Perplexity API key not configured",
       };
+      appendLogEntry("perplexity", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -421,8 +473,8 @@ export class LLMClients {
       const perplexityResponse: PerplexityResponse = response.body;
       const content = perplexityResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "perplexity",
+      const result = {
+        provider: "perplexity" as LLMProvider,
         response: content,
         model: perplexityResponse.model,
         usage: {
@@ -431,45 +483,30 @@ export class LLMClients {
           total_tokens: perplexityResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("perplexity", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage =
-            "Invalid API key - please check your Perplexity API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage =
-            "Payment required - please check your Perplexity billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return {
-        provider: "perplexity",
+      const errorMessage = this.parseApiError(error, "Perplexity");
+      const result = {
+        provider: "perplexity" as LLMProvider,
         response: "",
         error: `Perplexity API error: ${errorMessage}`,
       };
+      appendLogEntry("perplexity", request, result, Date.now() - startTime);
+      return result;
     }
   }
 
   async callMistral(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
     if (!this.mistralApiKey) {
-      return {
-        provider: "mistral",
+      const response = {
+        provider: "mistral" as LLMProvider,
         response: "",
         error: "Mistral API key not configured",
       };
+      appendLogEntry("mistral", request, response, Date.now() - startTime);
+      return response;
     }
 
     try {
@@ -497,8 +534,8 @@ export class LLMClients {
       const mistralResponse: MistralResponse = response.body;
       const content = mistralResponse.choices[0]?.message?.content || "";
 
-      return {
-        provider: "mistral",
+      const result = {
+        provider: "mistral" as LLMProvider,
         response: content,
         model: mistralResponse.model,
         usage: {
@@ -507,33 +544,17 @@ export class LLMClients {
           total_tokens: mistralResponse.usage.total_tokens,
         },
       };
+      appendLogEntry("mistral", request, result, Date.now() - startTime);
+      return result;
     } catch (error: any) {
-      let errorMessage = "Unknown error";
-
-      if (error.response) {
-        const status = error.response.status;
-        const body = error.response.body;
-
-        if (status === 401) {
-          errorMessage = "Invalid API key - please check your Mistral API key";
-        } else if (status === 429) {
-          errorMessage = "Rate limit exceeded - please try again later";
-        } else if (status === 402) {
-          errorMessage = "Payment required - please check your Mistral billing";
-        } else if (status === 400) {
-          errorMessage = `Bad request: ${body?.error?.message || "Invalid request format"}`;
-        } else {
-          errorMessage = `HTTP ${status}: ${body?.error?.message || error.message}`;
-        }
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-
-      return {
-        provider: "mistral",
+      const errorMessage = this.parseApiError(error, "Mistral");
+      const result = {
+        provider: "mistral" as LLMProvider,
         response: "",
         error: `Mistral API error: ${errorMessage}`,
       };
+      appendLogEntry("mistral", request, result, Date.now() - startTime);
+      return result;
     }
   }
 

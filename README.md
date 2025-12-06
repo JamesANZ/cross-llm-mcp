@@ -12,6 +12,7 @@ This MCP server offers:
 - **User preference system** with tag-based model selection
 - **Model tagging** to identify models by their strengths (coding, business, reasoning, etc.)
 - **Cost preference settings** to favor flagship or cheaper models
+- **Prompt logging system** to track all prompts and responses with history, statistics, and deletion
 
 ### 🤖 Individual LLM Tools
 
@@ -350,6 +351,151 @@ Preferences can also be set via environment variables:
 
 - `CROSS_LLM_DEFAULT_MODEL`: Default model name
 - `CROSS_LLM_COST_PREFERENCE`: "flagship" or "cheaper"
+
+### 📝 Prompt Logging System
+
+The server automatically logs all prompts sent to LLMs, including successful responses and errors. This allows you to track usage, review past interactions, and analyze token consumption.
+
+#### Automatic Logging
+
+Every LLM call is automatically logged with:
+- Timestamp
+- Provider and model used
+- Prompt text
+- Response text (or error message)
+- Parameters (temperature, max_tokens)
+- Token usage statistics
+- Response time (duration in milliseconds)
+
+Logs are stored in:
+- **Unix/macOS**: `~/.cross-llm-mcp/prompts.json`
+- **Windows**: `%APPDATA%/cross-llm-mcp/prompts.json`
+- **Fallback**: Project directory `.cross-llm-mcp/prompts.json`
+
+#### `get-prompt-history`
+
+View your prompt history with optional filters.
+
+**Input:**
+
+- `provider` (optional, string): Filter by LLM provider
+- `model` (optional, string): Filter by model name
+- `startDate` (optional, string): Filter entries from this date (ISO format: YYYY-MM-DD)
+- `endDate` (optional, string): Filter entries until this date (ISO format: YYYY-MM-DD)
+- `searchText` (optional, string): Search for text in prompt content
+- `limit` (optional, number): Maximum number of entries to return
+
+**Output:**
+
+- List of log entries matching the criteria, sorted by timestamp (newest first)
+
+**Example:**
+
+```json
+{
+  "tool": "get-prompt-history",
+  "arguments": {
+    "provider": "chatgpt",
+    "limit": 10
+  }
+}
+```
+
+#### `get-prompt-stats`
+
+Get statistics about your prompt logs.
+
+**Input:**
+
+- No parameters required
+
+**Output:**
+
+- Total number of entries
+- Count by provider
+- Count by model
+- Total tokens used
+- Date range (oldest and newest entries)
+- Log file location
+
+**Example:**
+
+```json
+{
+  "tool": "get-prompt-stats",
+  "arguments": {}
+}
+```
+
+#### `delete-prompt-entries`
+
+Delete prompt log entries matching specified criteria.
+
+**Input:**
+
+- `id` (optional, string): Delete entry with specific ID
+- `provider` (optional, string): Delete entries from this provider
+- `model` (optional, string): Delete entries for this model
+- `startDate` (optional, string): Delete entries from this date (ISO format: YYYY-MM-DD)
+- `endDate` (optional, string): Delete entries until this date (ISO format: YYYY-MM-DD)
+- `olderThanDays` (optional, number): Delete entries older than this many days
+
+**Output:**
+
+- Number of entries deleted
+
+**Examples:**
+
+Delete entries older than 30 days:
+```json
+{
+  "tool": "delete-prompt-entries",
+  "arguments": {
+    "olderThanDays": 30
+  }
+}
+```
+
+Delete all entries from a specific provider:
+```json
+{
+  "tool": "delete-prompt-entries",
+  "arguments": {
+    "provider": "chatgpt"
+  }
+}
+```
+
+Delete a specific entry by ID:
+```json
+{
+  "tool": "delete-prompt-entries",
+  "arguments": {
+    "id": "1764982478956-hi6spmg"
+  }
+}
+```
+
+#### `clear-prompt-history`
+
+Clear all prompt log entries.
+
+**Input:**
+
+- No parameters required
+
+**Output:**
+
+- Number of entries cleared
+
+**Example:**
+
+```json
+{
+  "tool": "clear-prompt-history",
+  "arguments": {}
+}
+```
 
 ### Example: Setting Up Tag-Based Preferences
 
@@ -703,6 +849,38 @@ Here are some example queries you can make with this MCP server:
 }
 ```
 
+#### Get Prompt History
+
+```json
+{
+  "tool": "get-prompt-history",
+  "arguments": {
+    "provider": "chatgpt",
+    "limit": 10
+  }
+}
+```
+
+#### Get Prompt Statistics
+
+```json
+{
+  "tool": "get-prompt-stats",
+  "arguments": {}
+}
+```
+
+#### Delete Old Prompt Entries
+
+```json
+{
+  "tool": "delete-prompt-entries",
+  "arguments": {
+    "olderThanDays": 30
+  }
+}
+```
+
 ## Use Cases
 
 ### 1. **Multi-Perspective Analysis**
@@ -728,6 +906,10 @@ Cross-reference responses from multiple models to validate information.
 ### 6. **Intelligent Model Selection**
 
 Use tag-based preferences to automatically select the best model for each question type. For example, use DeepSeek R1 for coding questions and GPT-4o for general queries.
+
+### 7. **Prompt History & Analytics**
+
+Track all your LLM interactions with automatic logging. Review past prompts, analyze token usage, and manage your log history. Useful for debugging, cost tracking, and understanding usage patterns.
 
 ## Configuration
 
@@ -973,7 +1155,7 @@ If you find this project useful, consider supporting it with Bitcoin:
 
 <code>[0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f](https://etherscan.io/address/0x42ea529282DDE0AA87B42d9E83316eb23FE62c3f)</code>
 
-*Donations from any EVM-compatible network (Ethereum, Polygon, Arbitrum, Optimism, BSC, Avalanche, etc.) will work perfectly! You can also send tokens like USDT, USDC, DAI, and other ERC-20 tokens to this address.*
+_Donations from any EVM-compatible network (Ethereum, Polygon, Arbitrum, Optimism, BSC, Avalanche, etc.) will work perfectly! You can also send tokens like USDT, USDC, DAI, and other ERC-20 tokens to this address._
 
 ## License
 

@@ -304,3 +304,40 @@ export type UserPreferences = {
     [tag in ModelTag]?: string; // Model name for this tag
   };
 };
+
+// Prompt logging types
+export type PromptLogEntry = {
+  id: string;
+  timestamp: string;
+  provider: LLMProvider;
+  model?: string;
+  prompt: string;
+  response?: string;
+  temperature?: number;
+  max_tokens?: number;
+  usage?: {
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+  };
+  error?: string;
+  duration_ms?: number;
+};
+
+export type PromptLogFilters = {
+  provider?: LLMProvider;
+  model?: string;
+  startDate?: string; // ISO date string
+  endDate?: string; // ISO date string
+  searchText?: string; // Search in prompt text
+  limit?: number;
+};
+
+export type PromptLogDeleteCriteria = {
+  id?: string;
+  provider?: LLMProvider;
+  model?: string;
+  startDate?: string; // ISO date string
+  endDate?: string; // ISO date string
+  olderThanDays?: number;
+};
