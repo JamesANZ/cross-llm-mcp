@@ -35,6 +35,7 @@ cd cross-llm-mcp && npm install && npm run build
 ## Features
 
 ### 🤖 Individual LLM Tools
+
 - **`call-chatgpt`** – OpenAI's ChatGPT API
 - **`call-claude`** – Anthropic's Claude API
 - **`call-deepseek`** – DeepSeek API
@@ -45,15 +46,18 @@ cd cross-llm-mcp && npm install && npm run build
 - **`call-mistral`** – Mistral AI API
 
 ### 🔄 Combined Tools
+
 - **`call-all-llms`** – Call all LLMs with the same prompt
 - **`call-llm`** – Call a specific provider by name
 
 ### ⚙️ Preferences & Model Selection
+
 - **`get-user-preferences`** – Get current preferences
 - **`set-user-preferences`** – Set default model, cost preference, and tag-based preferences
 - **`get-models-by-tag`** – Find models by tag (coding, business, reasoning, math, creative, general)
 
 ### 📝 Prompt Logging
+
 - **`get-prompt-history`** – View prompt history with filters
 - **`get-prompt-stats`** – Get statistics about prompt logs
 - **`delete-prompt-entries`** – Delete log entries by criteria
@@ -144,6 +148,7 @@ export MISTRAL_API_KEY="your_mistral_api_key"
 ## Usage Examples
 
 ### Call ChatGPT
+
 Get a response from OpenAI:
 
 ```json
@@ -158,6 +163,7 @@ Get a response from OpenAI:
 ```
 
 ### Call All LLMs
+
 Get responses from all providers:
 
 ```json
@@ -171,6 +177,7 @@ Get responses from all providers:
 ```
 
 ### Set Tag-Based Preferences
+
 Automatically use the best model for each task type:
 
 ```json
@@ -192,6 +199,7 @@ Automatically use the best model for each task type:
 ```
 
 ### Get Prompt History
+
 View your prompt logs:
 
 ```json
@@ -231,10 +239,12 @@ Models are tagged by their strengths:
 **Platforms:** macOS, Windows, Linux
 
 **Preference Storage:**
+
 - Unix/macOS: `~/.cross-llm-mcp/preferences.json`
 - Windows: `%APPDATA%/cross-llm-mcp/preferences.json`
 
 **Prompt Log Storage:**
+
 - Unix/macOS: `~/.cross-llm-mcp/prompts.json`
 - Windows: `%APPDATA%/cross-llm-mcp/prompts.json`
 
@@ -253,6 +263,7 @@ MIT License – see [LICENSE.md](LICENSE.md) for details.
 If you find this project useful, consider supporting it:
 
 **⚡ Lightning Network**
+
 ```
 lnbc1pjhhsqepp5mjgwnvg0z53shm22hfe9us289lnaqkwv8rn2s0rtekg5vvj56xnqdqqcqzzsxqyz5vqsp5gu6vh9hyp94c7t3tkpqrp2r059t4vrw7ps78a4n0a2u52678c7yq9qyyssq7zcferywka50wcy75skjfrdrk930cuyx24rg55cwfuzxs49rc9c53mpz6zug5y2544pt8y9jflnq0ltlha26ed846jh0y7n4gm8jd3qqaautqa
 ```

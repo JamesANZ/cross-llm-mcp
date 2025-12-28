@@ -27,6 +27,13 @@ import {
   getLogStats,
   getPromptsLogFilePath,
 } from "./prompt-logger.js";
+import {
+  createJob,
+  getJob,
+  listJobs,
+  updateJobStatus,
+  JobProcessor,
+} from "./async-job-manager.js";
 
 const server = new McpServer({
   name: "cross-llm-mcp",
@@ -38,6 +45,7 @@ const server = new McpServer({
 });
 
 const llmClients = new LLMClients();
+const jobProcessor = new JobProcessor(llmClients);
 
 // Individual LLM tools
 server.tool(
@@ -1389,7 +1397,313 @@ server.tool(
   },
 );
 
+// Async job tools
+server.tool(
+  "submit-llm-request-async",
+  "Submit an LLM request to be processed asynchronously. Returns a job ID immediately that can be used to poll for results later.",
+  {
+    provider: z
+      .enum([
+        "chatgpt",
+        "claude",
+        "deepseek",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "mistral",
+      ])
+      .describe("The LLM provider to call"),
+    prompt: z.string().describe("The prompt to send to the LLM"),
+    model: z
+      .string()
+      .optional()
+      .describe("Model to use (uses provider default if not specified)"),
+    temperature: z
+      .number()
+      .min(0)
+      .max(2)
+      .optional()
+      .describe("Temperature for response randomness (0-2, default: 0.7)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum tokens in response (default: 1000)"),
+  },
+  async ({ provider, prompt, model, temperature, max_tokens }) => {
+    try {
+      const jobId = createJob(provider as LLMProvider, {
+        prompt,
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Job Submitted Successfully**\n\n**Job ID:** ${jobId}\n**Provider:** ${provider}\n**Status:** pending\n\nUse \`get-async-job-result\` with this job ID to check status and retrieve the result.`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error submitting async job: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "get-async-job-result",
+  "Get the status and result of an async LLM job by job ID",
+  {
+    jobId: z
+      .string()
+      .describe("The job ID returned from submit-llm-request-async"),
+  },
+  async ({ jobId }) => {
+    try {
+      const job = getJob(jobId);
+      if (!job) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Job Not Found**\n\nJob ID "${jobId}" does not exist.`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Async Job Status**\n\n`;
+      result += `**Job ID:** ${job.id}\n`;
+      result += `**Status:** ${job.status}\n`;
+      result += `**Provider:** ${job.provider}\n`;
+      result += `**Created At:** ${job.createdAt}\n`;
+      result += `**Updated At:** ${job.updatedAt}\n`;
+
+      if (job.completedAt) {
+        result += `**Completed At:** ${job.completedAt}\n`;
+      }
+
+      result += `\n**Prompt:** ${job.request.prompt}\n`;
+
+      if (job.request.model) {
+        result += `**Model:** ${job.request.model}\n`;
+      }
+
+      if (job.status === "completed" && job.response) {
+        result += `\n---\n\n**Response:**\n\n${job.response.response}`;
+        if (job.response.model) {
+          result += `\n\n**Model Used:** ${job.response.model}`;
+        }
+        if (job.response.usage) {
+          result += `\n\n**Usage:**\n`;
+          result += `- Prompt tokens: ${job.response.usage.prompt_tokens || "N/A"}\n`;
+          result += `- Completion tokens: ${job.response.usage.completion_tokens || "N/A"}\n`;
+          result += `- Total tokens: ${job.response.usage.total_tokens || "N/A"}`;
+        }
+      } else if (job.status === "failed") {
+        result += `\n---\n\n**Error:** ${job.error || "Unknown error"}`;
+        if (job.response?.error) {
+          result += `\n\n${job.response.error}`;
+        }
+      } else if (job.status === "cancelled") {
+        result += `\n---\n\n**Job was cancelled.**`;
+      } else {
+        result += `\n---\n\n**Job is still ${job.status}. Check again later.**`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting async job result: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "list-async-jobs",
+  "List async jobs with optional filters (status, provider, limit)",
+  {
+    status: z
+      .enum(["pending", "processing", "completed", "failed", "cancelled"])
+      .optional()
+      .describe("Filter by job status"),
+    provider: z
+      .enum([
+        "chatgpt",
+        "claude",
+        "deepseek",
+        "gemini",
+        "grok",
+        "kimi",
+        "perplexity",
+        "mistral",
+      ])
+      .optional()
+      .describe("Filter by LLM provider"),
+    limit: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum number of jobs to return (default: all)"),
+  },
+  async ({ status, provider, limit }) => {
+    try {
+      const jobs = listJobs({
+        status,
+        provider: provider as LLMProvider,
+        limit,
+      });
+
+      if (jobs.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "No async jobs found matching the criteria.",
+            },
+          ],
+        };
+      }
+
+      let result = `**Async Jobs** (${jobs.length} found)\n\n`;
+
+      jobs.forEach((job, index) => {
+        result += `## Job ${index + 1}\n\n`;
+        result += `**Job ID:** ${job.id}\n`;
+        result += `**Status:** ${job.status}\n`;
+        result += `**Provider:** ${job.provider}\n`;
+        result += `**Created At:** ${job.createdAt}\n`;
+        if (job.completedAt) {
+          result += `**Completed At:** ${job.completedAt}\n`;
+        }
+        result += `**Prompt:** ${job.request.prompt.substring(0, 100)}${
+          job.request.prompt.length > 100 ? "..." : ""
+        }\n`;
+        if (job.status === "completed") {
+          result += `**Response:** ${job.response?.response?.substring(0, 100) || "N/A"}${
+            job.response?.response && job.response.response.length > 100
+              ? "..."
+              : ""
+          }\n`;
+        }
+        result += `\n---\n\n`;
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error listing async jobs: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
+server.tool(
+  "cancel-async-job",
+  "Cancel a pending or processing async job",
+  {
+    jobId: z.string().describe("The job ID to cancel"),
+  },
+  async ({ jobId }) => {
+    try {
+      const job = getJob(jobId);
+      if (!job) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Job Not Found**\n\nJob ID "${jobId}" does not exist.`,
+            },
+          ],
+        };
+      }
+
+      if (
+        job.status === "completed" ||
+        job.status === "failed" ||
+        job.status === "cancelled"
+      ) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Cannot Cancel Job**\n\nJob ID "${jobId}" is already ${job.status} and cannot be cancelled.`,
+            },
+          ],
+        };
+      }
+
+      updateJobStatus(jobId, "cancelled");
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `**Job Cancelled**\n\nJob ID "${jobId}" has been cancelled successfully.`,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error cancelling async job: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
 async function main() {
+  // Reset any jobs that were processing when server restarted
+  const processingJobs = listJobs({ status: "processing" });
+  for (const job of processingJobs) {
+    updateJobStatus(job.id, "pending");
+  }
+
+  // Start the job processor
+  jobProcessor.start();
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error("Cross-LLM MCP Server running on stdio");

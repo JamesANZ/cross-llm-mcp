@@ -341,3 +341,23 @@ export type PromptLogDeleteCriteria = {
   endDate?: string; // ISO date string
   olderThanDays?: number;
 };
+
+// Async job types
+export type AsyncJobStatus =
+  | "pending"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export type AsyncJob = {
+  id: string;
+  status: AsyncJobStatus;
+  provider: LLMProvider;
+  request: LLMRequest;
+  response?: LLMResponse;
+  error?: string;
+  createdAt: string; // ISO timestamp
+  updatedAt: string; // ISO timestamp
+  completedAt?: string; // ISO timestamp
+};
