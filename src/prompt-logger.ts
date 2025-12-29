@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
+import Database from "better-sqlite3";
+import { mkdirSync, existsSync } from "fs";
 import { join, dirname } from "path";
 import { homedir } from "os";
 import {
@@ -10,17 +11,61 @@ import {
   LLMResponse,
 } from "./types.js";
 
-// Determine prompts log file location (same as preferences)
-function getPromptsLogPath(): string {
+// Constants
+const TABLE_NAME = "prompt_logs";
+const CONFIG_DIR_NAME = "cross-llm-mcp";
+const DB_FILE_NAME = "prompts.db";
+const PROJECT_CONFIG_DIR = ".cross-llm-mcp";
+
+// SQL Query Constants
+const SELECT_ALL_FROM_TABLE = `SELECT * FROM ${TABLE_NAME}`;
+const DELETE_FROM_TABLE = `DELETE FROM ${TABLE_NAME}`;
+const COUNT_FROM_TABLE = `SELECT COUNT(*) as count FROM ${TABLE_NAME}`;
+const WHERE_1_EQ_1 = " WHERE 1=1";
+const ORDER_BY_TIMESTAMP_DESC = " ORDER BY timestamp DESC";
+const AND_PROVIDER_EQ = " AND provider = ?";
+const AND_MODEL_EQ = " AND model = ?";
+const AND_TIMESTAMP_GTE = " AND timestamp >= ?";
+const AND_TIMESTAMP_LTE = " AND timestamp <= ?";
+const AND_TIMESTAMP_LT = " AND timestamp < ?";
+const AND_PROMPT_LIKE = " AND LOWER(prompt) LIKE ?";
+const LIMIT_CLAUSE = " LIMIT ?";
+const WHERE_ID_EQ = " WHERE id = ?";
+const WHERE_MODEL_NOT_NULL = " WHERE model IS NOT NULL";
+const WHERE_USAGE_NOT_NULL = " WHERE usage IS NOT NULL";
+
+// Schema Constants
+const CREATE_TABLE_SCHEMA = `
+      CREATE TABLE IF NOT EXISTS ${TABLE_NAME} (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT,
+        prompt TEXT NOT NULL,
+        response TEXT,
+        temperature REAL,
+        max_tokens INTEGER,
+        usage TEXT,
+        error TEXT,
+        duration_ms INTEGER
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_timestamp ON ${TABLE_NAME}(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_provider ON ${TABLE_NAME}(provider);
+      CREATE INDEX IF NOT EXISTS idx_model ON ${TABLE_NAME}(model);
+    `;
+
+// Determine database file location
+function getPromptsDbPath(): string {
   const userConfigDir =
     process.platform === "win32"
-      ? join(process.env.APPDATA || homedir(), "cross-llm-mcp")
-      : join(homedir(), ".cross-llm-mcp");
+      ? join(process.env.APPDATA || homedir(), CONFIG_DIR_NAME)
+      : join(homedir(), `.${CONFIG_DIR_NAME}`);
 
   const projectDir = process.cwd();
-  const projectConfigPath = join(projectDir, ".cross-llm-mcp", "prompts.json");
+  const projectConfigPath = join(projectDir, PROJECT_CONFIG_DIR, DB_FILE_NAME);
 
-  const userConfigPath = join(userConfigDir, "prompts.json");
+  const userConfigPath = join(userConfigDir, DB_FILE_NAME);
 
   try {
     if (!existsSync(userConfigDir)) {
@@ -40,6 +85,43 @@ function getPromptsLogPath(): string {
   }
 }
 
+// Ensure directory exists for database file
+function ensureDbDirectory(dbPath: string): void {
+  const dbDir = dirname(dbPath);
+  if (!existsSync(dbDir)) {
+    mkdirSync(dbDir, { recursive: true });
+  }
+}
+
+// Initialize database schema
+function initializeSchema(db: Database.Database): void {
+  db.exec(CREATE_TABLE_SCHEMA);
+}
+
+// Get or create database instance
+let dbInstance: Database.Database | null = null;
+
+function getDatabase(): Database.Database {
+  if (dbInstance) {
+    return dbInstance;
+  }
+
+  const dbPath = getPromptsDbPath();
+  ensureDbDirectory(dbPath);
+
+  try {
+    dbInstance = new Database(dbPath);
+    dbInstance.prepare("SELECT 1").get(); // Test connection
+    initializeSchema(dbInstance);
+    return dbInstance;
+  } catch (error) {
+    console.error("CRITICAL: Error initializing database:", error);
+    console.error("Database path:", dbPath);
+    dbInstance = null;
+    throw new Error(`Failed to initialize database at ${dbPath}: ${error}`);
+  }
+}
+
 // Generate unique ID for log entry
 function generateLogId(): string {
   const timestamp = Date.now();
@@ -47,38 +129,163 @@ function generateLogId(): string {
   return `${timestamp}-${random}`;
 }
 
-// Load all log entries from file
-function loadLogEntries(): PromptLogEntry[] {
-  const logPath = getPromptsLogPath();
-  if (!existsSync(logPath)) {
-    return [];
-  }
+// Prepare log entry data for insertion
+function prepareLogEntryData(
+  provider: LLMProvider,
+  request: LLMRequest,
+  response: LLMResponse,
+  durationMs?: number,
+): {
+  id: string;
+  timestamp: string;
+  provider: LLMProvider;
+  model: string | null;
+  prompt: string;
+  response: string | null;
+  temperature: number | null;
+  max_tokens: number | null;
+  usage: string | null;
+  error: string | null;
+  duration_ms: number | null;
+} {
+  const id = generateLogId();
+  const timestamp = new Date().toISOString();
+  const usageJson = response.usage ? JSON.stringify(response.usage) : null;
 
-  try {
-    const fileContent = readFileSync(logPath, "utf-8");
-    const entries = JSON.parse(fileContent) as PromptLogEntry[];
-    return Array.isArray(entries) ? entries : [];
-  } catch (error) {
-    // If file is corrupted, return empty array
-    console.error("Error reading prompts log file:", error);
-    return [];
-  }
+  return {
+    id,
+    timestamp,
+    provider,
+    model: response.model || request.model || null,
+    prompt: request.prompt,
+    response: response.error ? null : response.response || null,
+    temperature: request.temperature ?? null,
+    max_tokens: request.max_tokens ?? null,
+    usage: usageJson,
+    error: response.error || null,
+    duration_ms: durationMs ?? null,
+  };
 }
 
-// Save log entries to file
-function saveLogEntries(entries: PromptLogEntry[]): void {
-  const logPath = getPromptsLogPath();
-  const logDir = dirname(logPath);
-
-  // Ensure directory exists
-  if (!existsSync(logDir)) {
-    mkdirSync(logDir, { recursive: true });
+// Build WHERE clause for filters
+function buildFilterClause(
+  filters: PromptLogFilters,
+  query: string,
+  params: any[],
+): string {
+  let result = query;
+  if (filters.provider) {
+    result += AND_PROVIDER_EQ;
+    params.push(filters.provider);
   }
 
+  if (filters.model) {
+    result += AND_MODEL_EQ;
+    params.push(filters.model);
+  }
+
+  if (filters.startDate) {
+    result += AND_TIMESTAMP_GTE;
+    params.push(filters.startDate);
+  }
+
+  if (filters.endDate) {
+    result += AND_TIMESTAMP_LTE;
+    params.push(filters.endDate);
+  }
+
+  if (filters.searchText) {
+    result += AND_PROMPT_LIKE;
+    params.push(`%${filters.searchText.toLowerCase()}%`);
+  }
+  return result;
+}
+
+// Build WHERE clause for delete criteria
+function buildDeleteClause(
+  criteria: PromptLogDeleteCriteria,
+  query: string,
+  params: any[],
+): string {
+  let result = query;
+  if (criteria.provider) {
+    result += AND_PROVIDER_EQ;
+    params.push(criteria.provider);
+  }
+
+  if (criteria.model) {
+    result += AND_MODEL_EQ;
+    params.push(criteria.model);
+  }
+
+  if (criteria.startDate) {
+    result += AND_TIMESTAMP_GTE;
+    params.push(criteria.startDate);
+  }
+
+  if (criteria.endDate) {
+    result += AND_TIMESTAMP_LTE;
+    params.push(criteria.endDate);
+  }
+
+  if (criteria.olderThanDays) {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - criteria.olderThanDays);
+    result += AND_TIMESTAMP_LT;
+    params.push(cutoffDate.toISOString());
+  }
+  return result;
+}
+
+// Convert database row to PromptLogEntry
+function rowToLogEntry(row: any): PromptLogEntry {
+  let usageObj;
   try {
-    writeFileSync(logPath, JSON.stringify(entries, null, 2), "utf-8");
-  } catch (error) {
-    throw new Error(`Failed to save prompts log: ${error}`);
+    usageObj = row.usage ? JSON.parse(row.usage) : undefined;
+  } catch (parseError) {
+    console.error(
+      "Error parsing usage JSON:",
+      parseError,
+      "Raw usage:",
+      row.usage,
+    );
+    usageObj = undefined;
+  }
+
+  return {
+    id: row.id,
+    timestamp: row.timestamp,
+    provider: row.provider as LLMProvider,
+    model: row.model || undefined,
+    prompt: row.prompt,
+    response: row.response || undefined,
+    temperature: row.temperature ?? undefined,
+    max_tokens: row.max_tokens ?? undefined,
+    usage: usageObj,
+    error: row.error || undefined,
+    duration_ms: row.duration_ms ?? undefined,
+  };
+}
+
+// Check if query returned unexpected empty results
+function checkEmptyResultDebug(
+  db: Database.Database,
+  rows: any[],
+  query: string,
+  filters?: PromptLogFilters,
+): void {
+  if (rows.length === 0 && (!filters || Object.keys(filters).length === 0)) {
+    try {
+      const countStmt = db.prepare(COUNT_FROM_TABLE);
+      const count = countStmt.get() as { count: number };
+      if (count.count > 0) {
+        console.error(
+          `Warning: Query returned 0 rows but table has ${count.count} rows. Query: ${query}`,
+        );
+      }
+    } catch {
+      // Ignore count check errors
+    }
   }
 }
 
@@ -90,23 +297,29 @@ export function appendLogEntry(
   durationMs?: number,
 ): void {
   try {
-    const entries = loadLogEntries();
-    const entry: PromptLogEntry = {
-      id: generateLogId(),
-      timestamp: new Date().toISOString(),
-      provider,
-      model: response.model || request.model,
-      prompt: request.prompt,
-      response: response.error ? undefined : response.response,
-      temperature: request.temperature,
-      max_tokens: request.max_tokens,
-      usage: response.usage,
-      error: response.error,
-      duration_ms: durationMs,
-    };
+    const db = getDatabase();
+    const stmt = db.prepare(`
+      INSERT INTO ${TABLE_NAME} (
+        id, timestamp, provider, model, prompt, response,
+        temperature, max_tokens, usage, error, duration_ms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-    entries.push(entry);
-    saveLogEntries(entries);
+    const data = prepareLogEntryData(provider, request, response, durationMs);
+
+    stmt.run(
+      data.id,
+      data.timestamp,
+      data.provider,
+      data.model,
+      data.prompt,
+      data.response,
+      data.temperature,
+      data.max_tokens,
+      data.usage,
+      data.error,
+      data.duration_ms,
+    );
   } catch (error) {
     // Don't throw - logging failures shouldn't break main functionality
     console.error("Error appending log entry:", error);
@@ -116,54 +329,33 @@ export function appendLogEntry(
 // Get log entries with optional filters
 export function getLogEntries(filters?: PromptLogFilters): PromptLogEntry[] {
   try {
-    let entries = loadLogEntries();
+    const db = getDatabase();
+    let query = SELECT_ALL_FROM_TABLE + WHERE_1_EQ_1;
+    const params: any[] = [];
 
-    // Apply filters
     if (filters) {
-      // Filter by provider
-      if (filters.provider) {
-        entries = entries.filter((e) => e.provider === filters.provider);
-      }
-
-      // Filter by model
-      if (filters.model) {
-        entries = entries.filter((e) => e.model === filters.model);
-      }
-
-      // Filter by date range
-      if (filters.startDate) {
-        const startDate = new Date(filters.startDate);
-        entries = entries.filter((e) => new Date(e.timestamp) >= startDate);
-      }
-
-      if (filters.endDate) {
-        const endDate = new Date(filters.endDate);
-        entries = entries.filter((e) => new Date(e.timestamp) <= endDate);
-      }
-
-      // Search in prompt text
-      if (filters.searchText) {
-        const searchLower = filters.searchText.toLowerCase();
-        entries = entries.filter((e) =>
-          e.prompt.toLowerCase().includes(searchLower),
-        );
-      }
+      query = buildFilterClause(filters, query, params);
     }
 
-    // Sort by timestamp (newest first)
-    entries.sort(
-      (a, b) =>
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
-    );
+    query += ORDER_BY_TIMESTAMP_DESC;
 
-    // Apply limit
     if (filters?.limit && filters.limit > 0) {
-      entries = entries.slice(0, filters.limit);
+      query += LIMIT_CLAUSE;
+      params.push(filters.limit);
     }
 
-    return entries;
+    const stmt = db.prepare(query);
+    const rows = stmt.all(...params) as any[];
+
+    checkEmptyResultDebug(db, rows, query, filters);
+
+    return rows.map(rowToLogEntry);
   } catch (error) {
     console.error("Error getting log entries:", error);
+    console.error(
+      "Error details:",
+      error instanceof Error ? error.stack : String(error),
+    );
     return [];
   }
 }
@@ -171,60 +363,21 @@ export function getLogEntries(filters?: PromptLogFilters): PromptLogEntry[] {
 // Delete log entries matching criteria
 export function deleteLogEntries(criteria: PromptLogDeleteCriteria): number {
   try {
-    let entries = loadLogEntries();
-    const originalCount = entries.length;
+    const db = getDatabase();
 
-    // If specific ID provided, delete just that one
     if (criteria.id) {
-      entries = entries.filter((e) => e.id !== criteria.id);
-    } else {
-      // Apply filters
-      entries = entries.filter((entry) => {
-        // Filter by provider
-        if (criteria.provider && entry.provider !== criteria.provider) {
-          return true; // Keep entry
-        }
-
-        // Filter by model
-        if (criteria.model && entry.model !== criteria.model) {
-          return true; // Keep entry
-        }
-
-        // Filter by date range
-        if (criteria.startDate) {
-          const startDate = new Date(criteria.startDate);
-          if (new Date(entry.timestamp) < startDate) {
-            return true; // Keep entry
-          }
-        }
-
-        if (criteria.endDate) {
-          const endDate = new Date(criteria.endDate);
-          if (new Date(entry.timestamp) > endDate) {
-            return true; // Keep entry
-          }
-        }
-
-        // Filter by older than X days
-        if (criteria.olderThanDays) {
-          const cutoffDate = new Date();
-          cutoffDate.setDate(cutoffDate.getDate() - criteria.olderThanDays);
-          if (new Date(entry.timestamp) >= cutoffDate) {
-            return true; // Keep entry
-          }
-        }
-
-        // Entry matches all criteria, delete it
-        return false;
-      });
+      const stmt = db.prepare(DELETE_FROM_TABLE + WHERE_ID_EQ);
+      const result = stmt.run(criteria.id);
+      return result.changes;
     }
 
-    const deletedCount = originalCount - entries.length;
-    if (deletedCount > 0) {
-      saveLogEntries(entries);
-    }
+    let query = DELETE_FROM_TABLE + WHERE_1_EQ_1;
+    const params: any[] = [];
+    query = buildDeleteClause(criteria, query, params);
 
-    return deletedCount;
+    const stmt = db.prepare(query);
+    const result = stmt.run(...params);
+    return result.changes;
   } catch (error) {
     console.error("Error deleting log entries:", error);
     throw new Error(`Failed to delete log entries: ${error}`);
@@ -234,14 +387,82 @@ export function deleteLogEntries(criteria: PromptLogDeleteCriteria): number {
 // Clear all log entries
 export function clearAllLogs(): number {
   try {
-    const entries = loadLogEntries();
-    const count = entries.length;
-    saveLogEntries([]);
-    return count;
+    const db = getDatabase();
+    const stmt = db.prepare(DELETE_FROM_TABLE);
+    const result = stmt.run();
+    return result.changes;
   } catch (error) {
     console.error("Error clearing logs:", error);
     throw new Error(`Failed to clear logs: ${error}`);
   }
+}
+
+// Get total entry count
+function getTotalEntryCount(db: Database.Database): number {
+  const stmt = db.prepare(COUNT_FROM_TABLE);
+  const result = stmt.get() as { count: number };
+  return result.count;
+}
+
+// Get oldest and newest timestamps
+function getTimestampRange(db: Database.Database): {
+  oldest?: string;
+  newest?: string;
+} {
+  const stmt = db.prepare(
+    `SELECT MIN(timestamp) as oldest, MAX(timestamp) as newest FROM ${TABLE_NAME}`,
+  );
+  const result = stmt.get() as { oldest: string; newest: string };
+  return {
+    oldest: result.oldest || undefined,
+    newest: result.newest || undefined,
+  };
+}
+
+// Get counts grouped by provider
+function getProviderCounts(db: Database.Database): Record<LLMProvider, number> {
+  const counts: Record<LLMProvider, number> = {} as Record<LLMProvider, number>;
+  const stmt = db.prepare(
+    `SELECT provider, COUNT(*) as count FROM ${TABLE_NAME} GROUP BY provider`,
+  );
+  const rows = stmt.all() as Array<{ provider: string; count: number }>;
+  rows.forEach((row) => {
+    counts[row.provider as LLMProvider] = row.count;
+  });
+  return counts;
+}
+
+// Get counts grouped by model
+function getModelCounts(db: Database.Database): Record<string, number> {
+  const counts: Record<string, number> = {};
+  const stmt = db.prepare(
+    `SELECT model, COUNT(*) as count FROM ${TABLE_NAME}${WHERE_MODEL_NOT_NULL} GROUP BY model`,
+  );
+  const rows = stmt.all() as Array<{ model: string; count: number }>;
+  rows.forEach((row) => {
+    counts[row.model] = row.count;
+  });
+  return counts;
+}
+
+// Calculate total tokens from usage JSON
+function calculateTotalTokens(db: Database.Database): number {
+  let totalTokens = 0;
+  const stmt = db.prepare(
+    `SELECT usage FROM ${TABLE_NAME}${WHERE_USAGE_NOT_NULL}`,
+  );
+  const rows = stmt.all() as Array<{ usage: string }>;
+  rows.forEach((row) => {
+    try {
+      const usage = JSON.parse(row.usage);
+      if (usage?.total_tokens) {
+        totalTokens += usage.total_tokens;
+      }
+    } catch {
+      // Skip invalid JSON
+    }
+  });
+  return totalTokens;
 }
 
 // Get statistics about logs
@@ -254,9 +475,11 @@ export function getLogStats(): {
   newestEntry?: string;
 } {
   try {
-    const entries = loadLogEntries();
+    const db = getDatabase();
+    const totalEntries = getTotalEntryCount(db);
+
     const stats = {
-      totalEntries: entries.length,
+      totalEntries,
       byProvider: {} as Record<LLMProvider, number>,
       byModel: {} as Record<string, number>,
       totalTokens: 0,
@@ -264,32 +487,16 @@ export function getLogStats(): {
       newestEntry: undefined as string | undefined,
     };
 
-    if (entries.length === 0) {
+    if (totalEntries === 0) {
       return stats;
     }
 
-    // Calculate statistics
-    const timestamps = entries.map((e) => new Date(e.timestamp).getTime());
-    stats.oldestEntry =
-      entries[timestamps.indexOf(Math.min(...timestamps))].timestamp;
-    stats.newestEntry =
-      entries[timestamps.indexOf(Math.max(...timestamps))].timestamp;
-
-    entries.forEach((entry) => {
-      // Count by provider
-      stats.byProvider[entry.provider] =
-        (stats.byProvider[entry.provider] || 0) + 1;
-
-      // Count by model
-      if (entry.model) {
-        stats.byModel[entry.model] = (stats.byModel[entry.model] || 0) + 1;
-      }
-
-      // Sum tokens
-      if (entry.usage?.total_tokens) {
-        stats.totalTokens += entry.usage.total_tokens;
-      }
-    });
+    const { oldest, newest } = getTimestampRange(db);
+    stats.oldestEntry = oldest;
+    stats.newestEntry = newest;
+    stats.byProvider = getProviderCounts(db);
+    stats.byModel = getModelCounts(db);
+    stats.totalTokens = calculateTotalTokens(db);
 
     return stats;
   } catch (error) {
@@ -305,5 +512,5 @@ export function getLogStats(): {
 
 // Get prompts log file path (for informational purposes)
 export function getPromptsLogFilePath(): string {
-  return getPromptsLogPath();
+  return getPromptsDbPath();
 }
