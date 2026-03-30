@@ -32,6 +32,10 @@ git clone https://github.com/JamesANZ/cross-llm-mcp.git
 cd cross-llm-mcp && npm install && npm run build
 ```
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/jamesanz-cross-llm-mcp).
+
 ## Features
 
 ### 🤖 Individual LLM Tools
