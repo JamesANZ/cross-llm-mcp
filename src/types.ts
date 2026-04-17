@@ -6,7 +6,8 @@ export type LLMProvider =
   | "grok"
   | "kimi"
   | "perplexity"
-  | "mistral";
+  | "mistral"
+  | "huggingface";
 
 // All available LLM providers in order
 export const ALL_LLM_PROVIDERS: readonly LLMProvider[] = [
@@ -18,6 +19,7 @@ export const ALL_LLM_PROVIDERS: readonly LLMProvider[] = [
   "kimi",
   "perplexity",
   "mistral",
+  "huggingface",
 ] as const;
 
 export type LLMResponse = {
@@ -275,6 +277,10 @@ export type MistralResponse = {
     total_tokens: number;
   };
 };
+
+/** Hugging Face Inference Router uses OpenAI-compatible chat completions. */
+export type HuggingFaceRequest = MistralRequest;
+export type HuggingFaceResponse = MistralResponse;
 
 // Model tagging and preferences types
 export type ModelTag =

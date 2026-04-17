@@ -35,4 +35,5 @@ console.log("   - GEMINI_API_KEY");
 console.log("   - XAI_API_KEY (optional)");
 console.log("   - KIMI_API_KEY (optional)");
 console.log("   - PERPLEXITY_API_KEY (optional)");
-console.log("   - MISTRAL_API_KEY (optional)\n");
+console.log("   - MISTRAL_API_KEY (optional)");
+console.log("   - HF_TOKEN or HUGGINGFACE_API_KEY (optional)\n");

@@ -29,11 +29,12 @@
     "anthropic",
     "xai",
     "mistral",
-    "perplexity"
+    "perplexity",
+    "huggingface"
   ],
   "author": "James Sangalli",
   "license": "MIT",
-  "description": "A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, Gemini, and Grok",
+  "description": "A Model Context Protocol (MCP) server that provides access to multiple Large Language Model (LLM) APIs including ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral, and Hugging Face Inference Router",
   "repository": {
     "type": "git",
     "url": "https://github.com/JamesANZ/cross-llm-mcp.git"

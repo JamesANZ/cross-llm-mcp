@@ -19,6 +19,8 @@ import {
   PerplexityResponse,
   MistralRequest,
   MistralResponse,
+  HuggingFaceRequest,
+  HuggingFaceResponse,
   ALL_LLM_PROVIDERS,
 } from "./types.js";
 import { appendLogEntry } from "./prompt-logger.js";
@@ -32,6 +34,7 @@ export class LLMClients {
   private kimiApiKey: string;
   private perplexityApiKey: string;
   private mistralApiKey: string;
+  private huggingfaceApiKey: string;
 
   constructor() {
     this.openaiApiKey = process.env.OPENAI_API_KEY || "";
@@ -43,6 +46,8 @@ export class LLMClients {
       process.env.KIMI_API_KEY || process.env.MOONSHOT_API_KEY || "";
     this.perplexityApiKey = process.env.PERPLEXITY_API_KEY || "";
     this.mistralApiKey = process.env.MISTRAL_API_KEY || "";
+    this.huggingfaceApiKey =
+      process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN || "";
   }
 
   // Helper function to parse API errors into user-friendly messages
@@ -558,6 +563,76 @@ export class LLMClients {
     }
   }
 
+  async callHuggingFace(request: LLMRequest): Promise<LLMResponse> {
+    const startTime = Date.now();
+    if (!this.huggingfaceApiKey) {
+      const response = {
+        provider: "huggingface" as LLMProvider,
+        response: "",
+        error:
+          "Hugging Face API key not configured (set HUGGINGFACE_API_KEY or HF_TOKEN)",
+      };
+      appendLogEntry("huggingface", request, response, Date.now() - startTime);
+      return response;
+    }
+
+    const baseUrl = (
+      process.env.HUGGINGFACE_INFERENCE_BASE_URL ||
+      "https://router.huggingface.co/v1"
+    ).replace(/\/$/, "");
+    const chatUrl = `${baseUrl}/chat/completions`;
+
+    try {
+      const hfRequest: HuggingFaceRequest = {
+        model:
+          request.model ||
+          process.env.DEFAULT_HUGGINGFACE_MODEL ||
+          "Qwen/Qwen2.5-7B-Instruct",
+        messages: [
+          {
+            role: "user",
+            content: request.prompt,
+          },
+        ],
+        temperature: request.temperature ?? 0.7,
+        max_tokens: request.max_tokens || 1000,
+      };
+
+      const response = await superagent
+        .post(chatUrl)
+        .set("Authorization", `Bearer ${this.huggingfaceApiKey}`)
+        .set("Content-Type", "application/json")
+        .send(hfRequest);
+
+      const hfResponse: HuggingFaceResponse = response.body;
+      const content = hfResponse.choices[0]?.message?.content || "";
+
+      const result = {
+        provider: "huggingface" as LLMProvider,
+        response: content,
+        model: hfResponse.model,
+        usage: hfResponse.usage
+          ? {
+              prompt_tokens: hfResponse.usage.prompt_tokens,
+              completion_tokens: hfResponse.usage.completion_tokens,
+              total_tokens: hfResponse.usage.total_tokens,
+            }
+          : undefined,
+      };
+      appendLogEntry("huggingface", request, result, Date.now() - startTime);
+      return result;
+    } catch (error: any) {
+      const errorMessage = this.parseApiError(error, "Hugging Face");
+      const result = {
+        provider: "huggingface" as LLMProvider,
+        response: "",
+        error: `Hugging Face API error: ${errorMessage}`,
+      };
+      appendLogEntry("huggingface", request, result, Date.now() - startTime);
+      return result;
+    }
+  }
+
   async callLLM(
     provider: LLMProvider,
     request: LLMRequest,
@@ -579,6 +654,8 @@ export class LLMClients {
         return this.callPerplexity(request);
       case "mistral":
         return this.callMistral(request);
+      case "huggingface":
+        return this.callHuggingFace(request);
       default:
         return {
           provider,

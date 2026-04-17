@@ -625,10 +625,83 @@ server.tool(
   },
 );
 
+server.tool(
+  "call-huggingface",
+  "Call Hugging Face Inference Router (OpenAI-compatible chat completions) with a prompt",
+  {
+    prompt: z.string().describe("The prompt to send to the model"),
+    model: z
+      .string()
+      .optional()
+      .describe(
+        "Hub model id (default: Qwen/Qwen2.5-7B-Instruct or DEFAULT_HUGGINGFACE_MODEL)",
+      ),
+    temperature: z
+      .number()
+      .min(0)
+      .max(2)
+      .optional()
+      .describe("Temperature for response randomness (0-2, default: 0.7)"),
+    max_tokens: z
+      .number()
+      .int()
+      .positive()
+      .optional()
+      .describe("Maximum tokens in response (default: 1000)"),
+  },
+  async ({ prompt, model, temperature, max_tokens }) => {
+    try {
+      const response = await llmClients.callHuggingFace({
+        prompt,
+        model,
+        temperature,
+        max_tokens,
+      });
+
+      if (response.error) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `**Hugging Face Error:** ${response.error}`,
+            },
+          ],
+        };
+      }
+
+      let result = `**Hugging Face Response**\n`;
+      result += `**Model:** ${response.model || "Unknown"}\n\n`;
+      result += response.response;
+
+      if (response.usage) {
+        result = addUsageMsg(response, result);
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: result,
+          },
+        ],
+      };
+    } catch (error: any) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error calling Hugging Face: ${error.message || "Unknown error"}`,
+          },
+        ],
+      };
+    }
+  },
+);
+
 // Combined tool that calls all LLMs
 server.tool(
   "call-all-llms",
-  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral) with the same prompt and get combined responses",
+  "Call all available LLM APIs (ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral, Hugging Face) with the same prompt and get combined responses",
   {
     prompt: z.string().describe("The prompt to send to all LLMs"),
     temperature: z
@@ -719,6 +792,7 @@ server.tool(
         "kimi",
         "perplexity",
         "mistral",
+        "huggingface",
       ])
       .describe("The LLM provider to call"),
     prompt: z.string().describe("The prompt to send to the LLM"),
@@ -1121,6 +1195,7 @@ server.tool(
         "kimi",
         "perplexity",
         "mistral",
+        "huggingface",
       ])
       .optional()
       .describe("Filter by LLM provider"),
@@ -1234,6 +1309,7 @@ server.tool(
         "kimi",
         "perplexity",
         "mistral",
+        "huggingface",
       ])
       .optional()
       .describe("Delete entries from this provider"),
@@ -1412,6 +1488,7 @@ server.tool(
         "kimi",
         "perplexity",
         "mistral",
+        "huggingface",
       ])
       .describe("The LLM provider to call"),
     prompt: z.string().describe("The prompt to send to the LLM"),
@@ -1562,6 +1639,7 @@ server.tool(
         "kimi",
         "perplexity",
         "mistral",
+        "huggingface",
       ])
       .optional()
       .describe("Filter by LLM provider"),

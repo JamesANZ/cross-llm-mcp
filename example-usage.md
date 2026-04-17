@@ -28,6 +28,10 @@ DEEPSEEK_API_KEY=sk-your-deepseek-key-here
 DEFAULT_CHATGPT_MODEL=gpt-4
 DEFAULT_CLAUDE_MODEL=claude-3-sonnet-20240229
 DEFAULT_DEEPSEEK_MODEL=deepseek-chat
+
+# Hugging Face Inference Router (Hub model ids; token needs Inference access)
+HF_TOKEN=hf_your_token_here
+# DEFAULT_HUGGINGFACE_MODEL=Qwen/Qwen2.5-7B-Instruct
 ```
 
 ### 2. Build the server
@@ -63,6 +67,19 @@ npm run build
     "prompt": "Explain quantum computing in simple terms",
     "temperature": 0.7,
     "max_tokens": 500
+  }
+}
+```
+
+#### Hugging Face (Inference Router)
+
+```json
+{
+  "tool": "call-huggingface",
+  "arguments": {
+    "prompt": "What is 2+2? Reply with one word.",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "max_tokens": 50
   }
 }
 ```

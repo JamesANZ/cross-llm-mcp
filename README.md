@@ -1,6 +1,6 @@
 # 🤖 Cross-LLM MCP Server
 
-> **Access multiple LLM APIs from one place.** Call ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, and Mistral with intelligent model selection, preferences, and prompt logging.
+> **Access multiple LLM APIs from one place.** Call ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral, and Hugging Face Inference Router with intelligent model selection, preferences, and prompt logging.
 
 An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that provides unified access to multiple Large Language Model APIs for AI coding environments like Cursor and Claude Desktop.
 
@@ -8,7 +8,7 @@ An [MCP (Model Context Protocol)](https://modelcontextprotocol.io) server that p
 
 ## Why Use Cross-LLM MCP?
 
-- 🌐 **8 LLM Providers** – ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral
+- 🌐 **9 LLM Providers** – ChatGPT, Claude, DeepSeek, Gemini, Grok, Kimi, Perplexity, Mistral, Hugging Face
 - 🎯 **Smart Model Selection** – Tag-based preferences (coding, business, reasoning, math, creative, general)
 - 📊 **Prompt Logging** – Track all prompts with history, statistics, and analytics
 - 💰 **Cost Optimization** – Choose flagship or cheaper models based on preference
@@ -44,6 +44,7 @@ cd cross-llm-mcp && npm install && npm run build
 - **`call-kimi`** – Moonshot AI's Kimi API
 - **`call-perplexity`** – Perplexity AI API
 - **`call-mistral`** – Mistral AI API
+- **`call-huggingface`** – Hugging Face Inference Router (OpenAI-compatible Hub models)
 
 ### 🔄 Combined Tools
 
@@ -108,7 +109,8 @@ Add to `claude_desktop_config.json`:
         "XAI_API_KEY": "your_grok_api_key_here",
         "KIMI_API_KEY": "your_kimi_api_key_here",
         "PERPLEXITY_API_KEY": "your_perplexity_api_key_here",
-        "MISTRAL_API_KEY": "your_mistral_api_key_here"
+        "MISTRAL_API_KEY": "your_mistral_api_key_here",
+        "HF_TOKEN": "your_huggingface_token_here"
       }
     }
   }
@@ -132,6 +134,9 @@ export XAI_API_KEY="your_grok_api_key"
 export KIMI_API_KEY="your_kimi_api_key"
 export PERPLEXITY_API_KEY="your_perplexity_api_key"
 export MISTRAL_API_KEY="your_mistral_api_key"
+export HF_TOKEN="your_huggingface_token"
+# Or: HUGGINGFACE_API_KEY (same as HF_TOKEN)
+# Optional: DEFAULT_HUGGINGFACE_MODEL, HUGGINGFACE_INFERENCE_BASE_URL (default https://router.huggingface.co/v1)
 ```
 
 ### Getting API Keys
@@ -144,6 +149,11 @@ export MISTRAL_API_KEY="your_mistral_api_key"
 - **Moonshot AI**: [https://platform.moonshot.ai/](https://platform.moonshot.ai/)
 - **Perplexity**: [https://www.perplexity.ai/hub](https://www.perplexity.ai/hub)
 - **Mistral**: [https://console.mistral.ai/](https://console.mistral.ai/)
+- **Hugging Face**: Create a fine-grained token with **Inference** (serverless / Inference Providers) access at [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens). See [Chat Completion](https://huggingface.co/docs/api-inference/tasks/chat-completion) for supported models.
+
+### Running Hub models locally (outside this MCP)
+
+This server calls Hugging Face’s **hosted** Inference Router; it does not download weights or run PyTorch/GGUF inside Node. To run models on your machine, use tools such as [Ollama](https://ollama.com/), [llama.cpp](https://github.com/ggerganov/llama.cpp), [Text Generation Inference](https://github.com/huggingface/text-generation-inference), or Hugging Face [Inference Endpoints](https://huggingface.co/docs/inference-endpoints/index), then point other clients at those services if they expose an API.
 
 ## Usage Examples
 
@@ -158,6 +168,22 @@ Get a response from OpenAI:
     "prompt": "Explain quantum computing in simple terms",
     "temperature": 0.7,
     "max_tokens": 500
+  }
+}
+```
+
+### Call Hugging Face
+
+Get a response from a Hub model via the Inference Router (`model` is the Hub repo id, e.g. `Qwen/Qwen2.5-7B-Instruct`):
+
+```json
+{
+  "tool": "call-huggingface",
+  "arguments": {
+    "prompt": "Reply with exactly: ok",
+    "model": "Qwen/Qwen2.5-7B-Instruct",
+    "temperature": 0.3,
+    "max_tokens": 32
   }
 }
 ```

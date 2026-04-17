@@ -227,6 +227,44 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     description: "Multimodal model for creative tasks",
   },
 
+  // Hugging Face Inference Router (Hub model ids)
+  {
+    name: "Qwen/Qwen2.5-7B-Instruct",
+    provider: "huggingface",
+    tags: ["general", "coding"],
+    costTier: "standard",
+    description: "Strong conversational model via HF Inference Router",
+  },
+  {
+    name: "Qwen/Qwen2.5-Coder-32B-Instruct",
+    provider: "huggingface",
+    tags: ["coding", "reasoning"],
+    costTier: "flagship",
+    description: "Large coding-focused instruct model on the Hub",
+  },
+  {
+    name: "deepseek-ai/DeepSeek-R1",
+    provider: "huggingface",
+    tags: ["reasoning", "math", "coding"],
+    costTier: "flagship",
+    description:
+      "Open reasoning model; availability depends on router/provider",
+  },
+  {
+    name: "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    provider: "huggingface",
+    tags: ["general", "coding"],
+    costTier: "budget",
+    description: "Compact Llama 3.1 instruct for general chat",
+  },
+  {
+    name: "Qwen/Qwen2.5-3B-Instruct",
+    provider: "huggingface",
+    tags: ["general"],
+    costTier: "budget",
+    description: "Small instruct model for lightweight tasks",
+  },
+
   // Perplexity models
   {
     name: "sonar-pro",
