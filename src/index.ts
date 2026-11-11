@@ -1590,10 +1590,8 @@ server.tool(
           result += `- Total tokens: ${job.response.usage.total_tokens || "N/A"}`;
         }
       } else if (job.status === "failed") {
-        result += `\n---\n\n**Error:** ${job.error || "Unknown error"}`;
-        if (job.response?.error) {
-          result += `\n\n${job.response.error}`;
-        }
+        const errorText = job.error || job.response?.error || "Unknown error";
+        result += `\n---\n\n**Error:** ${errorText}`;
       } else if (job.status === "cancelled") {
         result += `\n---\n\n**Job was cancelled.**`;
       } else {

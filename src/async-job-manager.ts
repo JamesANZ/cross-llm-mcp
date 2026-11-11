@@ -121,6 +121,46 @@ export function getJob(jobId: string): AsyncJob | null {
   }
 }
 
+const TERMINAL_JOB_STATUSES: AsyncJobStatus[] = [
+  "completed",
+  "failed",
+  "cancelled",
+];
+
+/**
+ * Move a job to `status`. A finished job stays finished, so a late
+ * completion cannot overwrite a cancel.
+ * @returns False when the job was already in a different terminal status.
+ */
+export function transitionJob(
+  job: AsyncJob,
+  status: AsyncJobStatus,
+  response?: LLMResponse,
+  error?: string,
+  now: string = new Date().toISOString(),
+): boolean {
+  if (TERMINAL_JOB_STATUSES.includes(job.status) && job.status !== status) {
+    return false;
+  }
+
+  job.status = status;
+  job.updatedAt = now;
+
+  if (response) {
+    job.response = response;
+  }
+
+  if (error) {
+    job.error = error;
+  }
+
+  if (TERMINAL_JOB_STATUSES.includes(status)) {
+    job.completedAt = now;
+  }
+
+  return true;
+}
+
 // Update job status
 export function updateJobStatus(
   jobId: string,
@@ -136,23 +176,8 @@ export function updateJobStatus(
     }
 
     const job = jobs[jobIndex];
-    job.status = status;
-    job.updatedAt = new Date().toISOString();
-
-    if (response) {
-      job.response = response;
-    }
-
-    if (error) {
-      job.error = error;
-    }
-
-    if (
-      status === "completed" ||
-      status === "failed" ||
-      status === "cancelled"
-    ) {
-      job.completedAt = new Date().toISOString();
+    if (!transitionJob(job, status, response, error)) {
+      return;
     }
 
     jobs[jobIndex] = job;
@@ -298,11 +323,14 @@ export class JobProcessor {
       // Mark as currently processing to prevent concurrent processing
       this.currentlyProcessing = true;
 
-      // Update status to processing
       updateJobStatus(job.id, "processing");
+      const current = getJob(job.id);
+      if (!current || current.status !== "processing") {
+        this.currentlyProcessing = false;
+        return;
+      }
 
-      // Process the job and wait for it to complete
-      await this.processJob(job);
+      await this.processJob(current);
 
       // Mark as no longer processing
       this.currentlyProcessing = false;
@@ -317,10 +345,13 @@ export class JobProcessor {
     const startTime = Date.now();
 
     try {
-      // Call the LLM
       const response = await this.llmClients.callLLM(job.provider, job.request);
 
-      // Update job status to completed
+      const latest = getJob(job.id);
+      if (!latest || latest.status === "cancelled") {
+        return;
+      }
+
       updateJobStatus(job.id, "completed", response);
 
       // Log to prompt logger
@@ -334,8 +365,12 @@ export class JobProcessor {
         error: errorMessage,
       };
 
-      // Update job status to failed
-      updateJobStatus(job.id, "failed", errorResponse, errorMessage);
+      const latest = getJob(job.id);
+      if (!latest || latest.status === "cancelled") {
+        return;
+      }
+
+      updateJobStatus(job.id, "failed", undefined, errorMessage);
 
       // Log to prompt logger
       const duration = Date.now() - startTime;
